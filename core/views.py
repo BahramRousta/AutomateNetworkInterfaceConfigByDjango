@@ -1,8 +1,5 @@
-import time
 from django.shortcuts import render, HttpResponse
-import paramiko
-import yaml
-from paramiko.ssh_exception import AuthenticationException
+from .utils import SSHConnect
 
 
 def index(request):
@@ -14,37 +11,19 @@ def change_ip_address(request):
     if request.method == "POST":
         hostname = request.POST.get('ip_address')
         new_ip_address = request.POST.get('new_ip_address')
+        username = request.POST.get('username')
+        password = request.POST.get('password')
 
-        ssh_client = paramiko.SSHClient()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        try:
-            ssh_client.connect(hostname=hostname,
-                               username='root',
-                               password='bahram1371')
-            print('Successfully connected!')
-        except AuthenticationException as err:
-            print(err)
-
-        ftp_client = ssh_client.open_sftp()
-        ftp_client.get(remotepath='/etc/netplan/01-network-manager-all.yaml',
-                       localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
-        with open('C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml', 'r') as reader:
-            data = yaml.safe_load(reader)
-            data['network']['ethernets']['ens33']['addresses'] = [new_ip_address]
-
-        with open('C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml', 'w') as writer:
-            yaml.dump(data, writer)
-
-        ftp_client.put(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml',
-                       remotepath='/etc/netplan/01-network-manager-all.yaml')
-
-        ftp_client.close()
-
-        remote_device = ssh_client.invoke_shell()
-        remote_device.send(f'netplan apply\n')
-        time.sleep(2)
-        out = remote_device.recv(10000)
-        print(out.decode())
-        ssh_client.close()
+        device = SSHConnect(hostname=hostname,
+                            username=username,
+                            password=password)
+        device.open_session()
+        device.open_sftp_session()
+        device.get_file(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
+        device.modify_config(new_ip_address=f'{new_ip_address}/24',
+                             localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
+        device.put_file(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
+        device.close_sftp_session()
+        device.apply_config(delay=3)
+        device.close_session()
         return HttpResponse('ok')

@@ -13,7 +13,9 @@
     <form method="post" action="{% url 'change_ip_address' %}">
         {% csrf_token %}
         <h1>Check network session from {{ hostname }} server.</h1>
-        <input type="text" name="ip_address">
+        <input type="text" name="ip_address" placeholder="Current Ip Address">
+        <input type="text" name="username" placeholder="Enter username">
+        <input type="password" name="password" placeholder="Enter password">
         <input type="text" name="new_ip_address" placeholder="New Ip Address">
         <input type="submit" value="Connect">
     </form>

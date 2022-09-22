@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class MachineIpAddress(models.Model):
+class DeviceIpAddress(models.Model):
     ip = models.GenericIPAddressField()
 
     def __str__(self):
