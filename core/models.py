@@ -2,7 +2,9 @@ from django.db import models
 
 
 class DeviceIpAddress(models.Model):
-    ip = models.GenericIPAddressField()
+    ip_address = models.GenericIPAddressField()
+    status = models.CharField(max_length=4)
+    host_name = models.CharField(max_length=50)
 
     def __str__(self):
-        return self.ip
+        return "{} - {}".format(self.ip_address, self.host_name)
