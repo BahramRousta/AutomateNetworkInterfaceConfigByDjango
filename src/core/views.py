@@ -1,5 +1,3 @@
-from typing import Tuple, Any
-
 import nmap
 from django.shortcuts import render, HttpResponse
 from .utils import SSHConnect
@@ -8,7 +6,7 @@ from .models import DeviceIpAddress
 
 def index(request):
     hostname = "192.168.1.85"
-    return render(request, 'core/../templates/core/index.html', {'hostname': hostname})
+    return render(request, 'core/index.html', {'hostname': hostname})
 
 
 def scan_network(request):
@@ -33,40 +31,7 @@ def scan_network(request):
                                                     host_name=device[1],
                                                     status=device[2])
     rendred_device = DeviceIpAddress.objects.filter(status="up")
-    return render(request, 'core/../templates/core/scan_network.html', {"devices": rendred_device})
-
-
-# def scan_network(request):
-#     device = SSHConnect(username='bahram',
-#                         password='458000',
-#                         hostname='192.168.1.51')
-#     remote = device.open_session()
-#     cmd = remote.invoke_shell()
-#     cmd.send(f'nmap -sn 192.168.1.1/24\n')
-#     time.sleep(5)
-#     output = cmd.recv(50000).decode()
-#     print(output)
-#     device.close_session()
-#
-#     machine = []
-#     virtual_machine = []
-#     for line in output.split('\r'):
-#         if "Nmap scan report for 192.168.1." in line:
-#             machine.append(line)
-#         elif "virtual-machine (192.168.1." in line:
-#             virtual_machine.append(line)
-#
-#     virtual_machine_ip_address = []
-#     for index in virtual_machine:
-#         a = index.replace('\nNmap scan report for bahram-virtual-machine (', '')
-#         b = a.replace(')', '')
-#         virtual_machine_ip_address.append(b)
-#
-#     machine_ip_address = []
-#     for index in machine:
-#         a = index.replace('\nNmap scan report for ', '')
-#         machine_ip_address.append(a)
-#     return render(request, 'core/scan_network.html', {'machine': machine_ip_address})
+    return render(request, 'core/scan_network.html', {"devices": rendred_device})
 
 
 def change_ip_address(request):
