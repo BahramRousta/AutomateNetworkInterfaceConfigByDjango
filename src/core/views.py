@@ -8,7 +8,7 @@ from .models import DeviceIpAddress
 
 def index(request):
     hostname = "192.168.1.85"
-    return render(request, 'core/index.html', {'hostname': hostname})
+    return render(request, 'core/../templates/core/index.html', {'hostname': hostname})
 
 
 def scan_network(request):
@@ -33,7 +33,7 @@ def scan_network(request):
                                                     host_name=device[1],
                                                     status=device[2])
     rendred_device = DeviceIpAddress.objects.filter(status="up")
-    return render(request, 'core/scan_network.html', {"devices": rendred_device})
+    return render(request, 'core/../templates/core/scan_network.html', {"devices": rendred_device})
 
 
 # def scan_network(request):
