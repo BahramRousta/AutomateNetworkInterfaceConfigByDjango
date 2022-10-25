@@ -1,56 +1,122 @@
 import nmap
-from django.shortcuts import render, HttpResponse
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from .utils import SSHConnect
-from .models import DeviceIpAddress
+from .serializers import DeviceSerializers, RouterSerializer, ChangeDeviceIPSerializer
 
 
-def index(request):
-    hostname = "192.168.1.85"
-    return render(request, 'core/index.html', {'hostname': hostname})
+class ScanNetwork(APIView):
+    """
+    Scan up devices in network.
+    @return: device ip address, hostname and status.
+    """
+    def post(self, request):
+        serializer = RouterSerializer(data=request.data)
+        data = {}
+        if serializer.is_valid():
+            router_ip = serializer.validated_data['router_ip']
+
+            nm = nmap.PortScanner()
+            nm.scan(arguments=f"-sn {router_ip}")
+            ip_address = nm.all_hosts()
+            hosts_name = []
+            host_name = [(x, nm[x]['hostnames'][0]['name']) for x in nm.all_hosts()]
+            for hostname in host_name:
+                hosts_name.append(hostname[1])
+
+            hosts_status = []
+            host_status = [(y, nm[y]['status']["state"]) for y in nm.all_hosts()]
+            for y in host_status:
+                hosts_status.append(y[1])
+
+            devices_log = list(zip(ip_address, hosts_name, hosts_status))
+            return Response(status=status.HTTP_200_OK, data=devices_log)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-def scan_network(request):
-    global new_device
-    nm = nmap.PortScanner()
-    nm.scan(arguments='-sn 192.168.1.1/24')
-    ip_address = nm.all_hosts()
+class PingDevice(APIView):
+    """
+    Ping a device.
+    @return: device status.
+    """
+    def get(self, request):
+        serializer = DeviceSerializers(data=request.query_params)
+        if serializer.is_valid():
+            ip_address = serializer.validated_data['ip_address']
+            nm = nmap.PortScanner()
+            nm.scan(hosts=f'{ip_address}', arguments='-n -sP')
+            data = {}
+            hosts_list = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
 
-    hosts_name = []
-    host_name = [(x, nm[x]['hostnames'][0]['name']) for x in nm.all_hosts()]
-    for hostname in host_name:
-        hosts_name.append(hostname[1])
-
-    hosts_status = []
-    host_status = [(y, nm[y]['status']["state"]) for y in nm.all_hosts()]
-    for status in host_status:
-        hosts_status.append(status[1])
-
-    devices_log = list(zip(ip_address, hosts_name, hosts_status))
-    for device in devices_log:
-        new_device = DeviceIpAddress.objects.create(ip_address=device[0],
-                                                    host_name=device[1],
-                                                    status=device[2])
-    rendred_device = DeviceIpAddress.objects.filter(status="up")
-    return render(request, 'core/scan_network.html', {"devices": rendred_device})
+            for host, device_status in hosts_list:
+                if device_status == "Down" or "":
+                    break
+                else:
+                    data['status'] = f"{host} is {device_status}"
+                    return Response(status=status.HTTP_200_OK, data=data)
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={'status': 'Host is down'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
-def change_ip_address(request):
-    if request.method == "POST":
-        hostname = request.POST.get('ip_address')
-        new_ip_address = request.POST.get('new_ip_address')
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+class GetOSDevice(APIView):
+    """
+    Detect device OS.
+    """
+    def get(self, request):
+        global output
+        serializer = DeviceSerializers(data=request.query_params)
+        data = {}
+        if serializer.is_valid():
+            ip_address = serializer.validated_data['ip_address']
+            nm = nmap.PortScanner()
+            a = nm.scan(f"{ip_address}", arguments="--privileged -O -v")
+            output = []
+            nm.all_hosts()
+            for h in nm.all_hosts():
 
-        device = SSHConnect(hostname=hostname,
-                            username=username,
-                            password=password)
-        device.open_session()
-        device.open_sftp_session()
-        device.get_file(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
-        device.modify_config(new_ip_address=f'{new_ip_address}/24',
-                             localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
-        device.put_file(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
-        device.close_sftp_session()
-        device.apply_config(delay=3)
-        device.close_session()
-        return HttpResponse('ok')
+                # get ip and mac addresses
+                item = nm[h]['addresses']
+                # get computer os
+                if nm[h]['osmatch']:
+                    item['osmatch'] = nm[h]['osmatch'][0]["name"]
+                    output.append(item)
+                # get cellphone vendor
+                elif nm[h]['vendor'].values():
+                    item['vendor'] = list(nm[h]['vendor'].values())[0]
+                    output.append(item)
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangeDeviceIp(APIView):
+    """
+    Change linux(Ubuntu) device ip address through ssh and sftp connection.
+
+    """
+    def post(self, request):
+        serializer = ChangeDeviceIPSerializer(data=request.data)
+        if serializer.is_valid():
+            current_ip = serializer.validated_data['current_ip']
+            new_ip = serializer.validated_data['new_ip']
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+
+            device = SSHConnect(hostname=current_ip,
+                                username=username,
+                                password=password)
+            device.open_session()
+            device.open_sftp_session()
+            device.get_file(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
+            device.modify_config(new_ip_address=f'{new_ip}/24',
+                                 localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
+            device.put_file(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
+            device.close_sftp_session()
+            device.apply_config(delay=3)
+            device.close_session()
+            return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
