@@ -7,19 +7,27 @@ from .serializers import DeviceSerializers, RouterSerializer, ChangeDeviceIPSeri
 
 
 class ScanNetwork(APIView):
+
     """
-    Scan up devices in network.
-    @return: device ip address, hostname and status.
+    Scan devices up in network.
+    @return: device ip address, hostname, status, mac address and device vendor.
     """
+
     def post(self, request):
         serializer = RouterSerializer(data=request.data)
         data = {}
         if serializer.is_valid():
+
+            """
+                Sample for check all devices up in local network:> 192.168.1.*
+            """
+
             router_ip = serializer.validated_data['router_ip']
 
             nm = nmap.PortScanner()
             nm.scan(arguments=f"-sn {router_ip}")
             ip_address = nm.all_hosts()
+
             hosts_name = []
             host_name = [(x, nm[x]['hostnames'][0]['name']) for x in nm.all_hosts()]
             for hostname in host_name:
@@ -30,7 +38,21 @@ class ScanNetwork(APIView):
             for y in host_status:
                 hosts_status.append(y[1])
 
-            devices_log = list(zip(ip_address, hosts_name, hosts_status))
+            mac_address = []
+            mac_addresses = [(z, nm[z]['addresses']) for z in nm.all_hosts()]
+            for i in mac_addresses:
+                if "mac" in i[1]:
+                    mac_address.append(i[1]['mac'])
+                else:
+                    mac_address.append("No mac detected")
+            
+            vendors = []
+            vendor = [(z, nm[z]['vendor']) for z in nm.all_hosts()]
+            for i in vendor:
+                vendors.append(list(i[1].values()))
+                
+            devices_log = list(zip(ip_address, hosts_name, hosts_status, mac_address, vendors))
+
             return Response(status=status.HTTP_200_OK, data=devices_log)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
