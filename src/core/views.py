@@ -7,7 +7,6 @@ from .serializers import DeviceSerializers, RouterSerializer, ChangeDeviceIPSeri
 
 
 class ScanNetwork(APIView):
-
     """
     Scan devices up in network.
     @return: device ip address, hostname, status, mac address and device vendor.
@@ -45,12 +44,12 @@ class ScanNetwork(APIView):
                     mac_address.append(i[1]['mac'])
                 else:
                     mac_address.append("No mac detected")
-            
+
             vendors = []
             vendor = [(z, nm[z]['vendor']) for z in nm.all_hosts()]
             for i in vendor:
                 vendors.append(list(i[1].values()))
-                
+
             devices_log = list(zip(ip_address, hosts_name, hosts_status, mac_address, vendors))
 
             return Response(status=status.HTTP_200_OK, data=devices_log)
@@ -63,6 +62,7 @@ class PingDevice(APIView):
     Ping a device.
     @return: device status.
     """
+
     def get(self, request):
         serializer = DeviceSerializers(data=request.query_params)
         if serializer.is_valid():
@@ -87,6 +87,7 @@ class GetOSDevice(APIView):
     """
     Detect device OS.
     """
+
     def get(self, request):
         global output
         serializer = DeviceSerializers(data=request.query_params)
@@ -119,11 +120,36 @@ class GetOSDevice(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class ChangeDeviceIp(APIView):
+def _handle_config(hostname, username, password, new_ip=None, dns=None):
+    device = SSHConnect(hostname=hostname,
+                        username=username,
+                        password=password)
+    device.open_session()
+    device.open_sftp_session()
+    device.get_file(localpath='core/localpath/01-network-manager-all.yaml')
+
+    if new_ip:
+        device.modify_config(new_ip_address=f'{new_ip}/24',
+                             localpath='core/localpath/01-network-manager-all.yaml')
+
+    if dns:
+        device.modify_config(dns=dns,
+                             localpath='core/localpath/01-network-manager-all.yaml')
+
+    device.put_file(localpath='core/localpath/01-network-manager-all.yaml')
+
+    device.close_sftp_session()
+    device.apply_config(delay=3)
+    device.close_session()
+    return None
+
+
+class ChangeDeviceNetworkInterFace(APIView):
     """
     Change linux(Ubuntu) device ip address through ssh and sftp connection.
 
     """
+
     def post(self, request):
         serializer = ChangeDeviceIPSerializer(data=request.data)
         if serializer.is_valid():
@@ -131,21 +157,36 @@ class ChangeDeviceIp(APIView):
             new_ip = serializer.validated_data['new_ip']
             username = serializer.validated_data['username']
             password = serializer.validated_data['password']
+            dns = serializer.validated_data['dns']
 
-            device = SSHConnect(hostname=current_ip,
-                                username=username,
-                                password=password)
-            device.open_session()
-            device.open_sftp_session()
-            device.get_file(localpath='core/localpath/01-network-manager-all.yaml')
-            device.modify_ip_address(new_ip_address=f'{new_ip}/24',
-                                     localpath='core/localpath/01-network-manager-all.yaml')
-            device.put_file(localpath='core/localpath/01-network-manager-all.yaml')
-            device.close_sftp_session()
-            device.apply_config(delay=3)
-            device.close_session()
+            _handle_config(hostname=current_ip,
+                           username=username,
+                           password=password,
+                           new_ip=new_ip,
+                           dns=dns)
+
             return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
+class ChangeDeviceIp(APIView):
+    """
+    change device ip address.
+    """
+    def post(self, request):
+        serializer = ChangeDeviceIPSerializer(data=request.data)
+        if serializer.is_valid():
+            current_ip = serializer.validated_data['current_ip']
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+            new_ip = serializer.validated_data['new_ip']
+
+            _handle_config(hostname=current_ip,
+                           username=username,
+                           password=password,
+                           new_ip=new_ip)
+
+            return Response(status=status.HTTP_200_OK, data={'status': 'Changed IP successfully.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)

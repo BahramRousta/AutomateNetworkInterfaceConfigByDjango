@@ -59,11 +59,14 @@ class SSHConnect:
     def put_file(self, localpath):
         return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_PATH)
 
-    def modify_ip_address(self, new_ip_address, localpath):
+    def modify_config(self, new_ip_address=None, dns=None, localpath=None):
         with open(localpath, 'r') as reader:
             data = yaml.safe_load(reader)
-            data['network']['ethernets']['wlp18s0']['addresses'] = [new_ip_address]
 
+            if new_ip_address:
+                data['network']['ethernets']['wlp18s0']['addresses'] = [new_ip_address]
+            if dns:
+                data['network']['ethernets']['wlp18s0']['nameservers']['addresses'] = [dns]
         with open(localpath, 'w') as writer:
             new_config_file = yaml.dump(data, writer)
         return new_config_file
