@@ -137,10 +137,10 @@ class ChangeDeviceIp(APIView):
                                 password=password)
             device.open_session()
             device.open_sftp_session()
-            device.get_file(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
-            device.modify_config(new_ip_address=f'{new_ip}/24',
-                                 localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
-            device.put_file(localpath='C:/Users/Berooz Stock/Desktop/SSHConnection/01-network-manager-all.yaml')
+            device.get_file(localpath='core/localpath/01-network-manager-all.yaml')
+            device.modify_ip_address(new_ip_address=f'{new_ip}/24',
+                                     localpath='core/localpath/01-network-manager-all.yaml')
+            device.put_file(localpath='core/localpath/01-network-manager-all.yaml')
             device.close_sftp_session()
             device.apply_config(delay=3)
             device.close_session()
