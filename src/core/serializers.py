@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 
 class DeviceSerializers(serializers.Serializer):
-    ip_address = serializers.CharField(max_length=50)
+    device_ip_address = serializers.CharField(max_length=50)
 
 
 class RouterSerializer(serializers.Serializer):

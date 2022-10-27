@@ -66,9 +66,9 @@ class PingDevice(APIView):
     def get(self, request):
         serializer = DeviceSerializers(data=request.query_params)
         if serializer.is_valid():
-            ip_address = serializer.validated_data['ip_address']
+            device_ip_address = serializer.validated_data['device_ip_address']
             nm = nmap.PortScanner()
-            nm.scan(hosts=f'{ip_address}', arguments='-n -sP')
+            nm.scan(hosts=f'{device_ip_address}', arguments='-n -sP')
             data = {}
             hosts_list = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
 
@@ -92,24 +92,29 @@ class GetOSDevice(APIView):
         serializer = DeviceSerializers(data=request.query_params)
         data = {}
         if serializer.is_valid():
-            ip_address = serializer.validated_data['ip_address']
+            ip_address = serializer.validated_data['device_ip_address']
+
             nm = nmap.PortScanner()
-            a = nm.scan(f"{ip_address}", arguments="--privileged -O -v")
+            nm.scan(f"{ip_address}", arguments="--privileged -O")
+
             output = []
             nm.all_hosts()
             for h in nm.all_hosts():
 
                 # get ip and mac addresses
                 item = nm[h]['addresses']
+
                 # get computer os
                 if nm[h]['osmatch']:
                     item['osmatch'] = nm[h]['osmatch'][0]["name"]
                     output.append(item)
+
                 # get cellphone vendor
-                elif nm[h]['vendor'].values():
+                if nm[h]['vendor'].values():
                     item['vendor'] = list(nm[h]['vendor'].values())[0]
                     output.append(item)
-            return Response(status=status.HTTP_200_OK, data=serializer.data)
+
+            return Response(status=status.HTTP_200_OK, data=output)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -142,3 +147,5 @@ class ChangeDeviceIp(APIView):
             return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+
