@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .utils import SSHConnect
-from .serializers import DeviceSerializers, RouterSerializer, DeviceNetworkSerializer, DNSSerializer
+from .serializers import DeviceSerializers, RouterSerializer, DeviceNetworkSerializer, DNSSerializer, HostSerializer
 
 
 class ScanNetwork(APIView):
@@ -97,11 +97,10 @@ class GetOSDevice(APIView):
 
             nm = nmap.PortScanner()
             nm.scan(f"{ip_address}", arguments="--privileged -O")
-            print(nm.scan(f"{ip_address}", arguments="--privileged -O"))
 
             output = []
-            a= nm.all_hosts()
-            print(a)
+            nm.all_hosts()
+
             for h in nm.all_hosts():
 
                 # get ip and mac addresses
@@ -122,7 +121,7 @@ class GetOSDevice(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-def _handle_config(hostname, username, password, new_ip=None, dns=None):
+def _handle_config(hostname, username, password, new_ip=None, dns=None, getway=None):
     device = SSHConnect(hostname=hostname,
                         username=username,
                         password=password)
@@ -138,6 +137,10 @@ def _handle_config(hostname, username, password, new_ip=None, dns=None):
         device.modify_config(dns=dns,
                              localpath='core/localpath/01-network-manager-all.yaml')
 
+    if getway:
+        device.modify_config(getway=getway,
+                             localpath='core/localpath/01-network-manager-all.yaml')
+
     device.put_file(localpath='core/localpath/01-network-manager-all.yaml')
 
     device.close_sftp_session()
@@ -149,7 +152,6 @@ def _handle_config(hostname, username, password, new_ip=None, dns=None):
 class ChangeDeviceNetworkInterFace(APIView):
     """
     Change linux(Ubuntu) device ip address through ssh and sftp connection.
-
     """
 
     def post(self, request):
@@ -193,6 +195,7 @@ class ChangeDeviceIp(APIView):
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
+
 class ChangeDNS(APIView):
     """
     change device ip address.
@@ -211,5 +214,25 @@ class ChangeDNS(APIView):
                            dns=dns)
 
             return Response(status=status.HTTP_200_OK, data={'status': 'Changed DNS successfully.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+
+class ChangeGetWay(APIView):
+
+    def post(self, request):
+        serializer = RouterSerializer(data=request.data)
+        if serializer.is_valid():
+            current_ip = serializer.validated_data['current_ip']
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+            getway = serializer.validated_data['dns']
+
+            _handle_config(hostname=current_ip,
+                           username=username,
+                           password=password,
+                           getway=getway)
+
+            return Response(status=status.HTTP_200_OK, data={'status': 'GetWay changed successfully.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)

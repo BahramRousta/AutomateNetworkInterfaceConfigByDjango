@@ -6,7 +6,7 @@ class DeviceSerializers(serializers.Serializer):
 
 
 class RouterSerializer(serializers.Serializer):
-    router_ip = serializers.CharField(max_length=50)
+    router_ip = serializers.IPAddressField()
 
 
 class HostSerializer(serializers.Serializer):

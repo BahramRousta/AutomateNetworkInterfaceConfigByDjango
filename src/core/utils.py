@@ -59,7 +59,7 @@ class SSHConnect:
     def put_file(self, localpath):
         return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_NETWORK_INTERFACE_PATH)
 
-    def modify_config(self, new_ip_address=None, dns=None, localpath=None):
+    def modify_config(self, new_ip_address=None, dns=None, getway=None, localpath=None):
 
         with open(localpath, 'r') as reader:
             data = yaml.safe_load(reader)
@@ -70,7 +70,10 @@ class SSHConnect:
 
             # Modify DNS
             if dns:
-                dns1 = data['network']['ethernets']['wlp18s0']['nameservers']['addresses'] = dns
+                data['network']['ethernets']['wlp18s0']['nameservers']['addresses'] = dns
+
+            if getway:
+                data['network']['ethernets']['wlp18s0']['gateway4'] = getway
 
         with open(localpath, 'w') as writer:
             new_config_file = yaml.dump(data, writer)
