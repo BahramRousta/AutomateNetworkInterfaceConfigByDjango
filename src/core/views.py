@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .utils import SSHConnect
-from .serializers import DeviceSerializers, RouterSerializer, ChangeDeviceIPSerializer
+from .serializers import DeviceSerializers, RouterSerializer, DeviceNetworkSerializer, DNSSerializer
 
 
 class ScanNetwork(APIView):
@@ -97,9 +97,11 @@ class GetOSDevice(APIView):
 
             nm = nmap.PortScanner()
             nm.scan(f"{ip_address}", arguments="--privileged -O")
+            print(nm.scan(f"{ip_address}", arguments="--privileged -O"))
 
             output = []
-            nm.all_hosts()
+            a= nm.all_hosts()
+            print(a)
             for h in nm.all_hosts():
 
                 # get ip and mac addresses
@@ -114,7 +116,7 @@ class GetOSDevice(APIView):
                 if nm[h]['vendor'].values():
                     item['vendor'] = list(nm[h]['vendor'].values())[0]
                     output.append(item)
-
+                print(output)
             return Response(status=status.HTTP_200_OK, data=output)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -151,7 +153,7 @@ class ChangeDeviceNetworkInterFace(APIView):
     """
 
     def post(self, request):
-        serializer = ChangeDeviceIPSerializer(data=request.data)
+        serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
             current_ip = serializer.validated_data['current_ip']
             new_ip = serializer.validated_data['new_ip']
@@ -175,7 +177,7 @@ class ChangeDeviceIp(APIView):
     change device ip address.
     """
     def post(self, request):
-        serializer = ChangeDeviceIPSerializer(data=request.data)
+        serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
             current_ip = serializer.validated_data['current_ip']
             username = serializer.validated_data['username']
@@ -188,5 +190,26 @@ class ChangeDeviceIp(APIView):
                            new_ip=new_ip)
 
             return Response(status=status.HTTP_200_OK, data={'status': 'Changed IP successfully.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+class ChangeDNS(APIView):
+    """
+    change device ip address.
+    """
+    def post(self, request):
+        serializer = DNSSerializer(data=request.data)
+        if serializer.is_valid():
+            current_ip = serializer.validated_data['current_ip']
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+            dns = serializer.validated_data['dns']
+
+            _handle_config(hostname=current_ip,
+                           username=username,
+                           password=password,
+                           dns=dns)
+
+            return Response(status=status.HTTP_200_OK, data={'status': 'Changed DNS successfully.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)

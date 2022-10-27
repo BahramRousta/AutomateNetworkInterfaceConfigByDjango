@@ -3,8 +3,8 @@ import yaml
 from paramiko import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import AuthenticationException, SSHException
 
-REMOTE_PATH = '/etc/netplan/01-network-manager-all.yaml'
-
+REMOTE_NETWORK_INTERFACE_PATH = '/etc/netplan/01-network-manager-all.yaml'
+LOCAL_PATH = 'core/localpath/01-network-manager-all.yaml'
 
 class SSHConnect:
     def __init__(self, hostname: str, username: str, password: str):
@@ -54,19 +54,24 @@ class SSHConnect:
         return self.sftp_client.close()
 
     def get_file(self, localpath):
-        return self.sftp_client.get(remotepath=REMOTE_PATH, localpath=localpath)
+        return self.sftp_client.get(remotepath=REMOTE_NETWORK_INTERFACE_PATH, localpath=localpath)
 
     def put_file(self, localpath):
-        return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_PATH)
+        return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_NETWORK_INTERFACE_PATH)
 
     def modify_config(self, new_ip_address=None, dns=None, localpath=None):
+
         with open(localpath, 'r') as reader:
             data = yaml.safe_load(reader)
 
+            # Modify IP address
             if new_ip_address:
                 data['network']['ethernets']['wlp18s0']['addresses'] = [new_ip_address]
+
+            # Modify DNS
             if dns:
-                data['network']['ethernets']['wlp18s0']['nameservers']['addresses'] = [dns]
+                dns1 = data['network']['ethernets']['wlp18s0']['nameservers']['addresses'] = dns
+
         with open(localpath, 'w') as writer:
             new_config_file = yaml.dump(data, writer)
         return new_config_file

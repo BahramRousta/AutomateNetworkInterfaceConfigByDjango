@@ -7,17 +7,19 @@ class DeviceSerializers(serializers.Serializer):
 
 class RouterSerializer(serializers.Serializer):
     router_ip = serializers.CharField(max_length=50)
-    username = serializers.CharField(max_length=25)
-    password = serializers.CharField(max_length=25)
 
 
-class AuthenticatedSerializer(serializers.Serializer):
+class HostSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=25, required=True)
     password = serializers.CharField(max_length=25, required=True)
     current_ip = serializers.IPAddressField(required=True)
 
 
-class ChangeDeviceIPSerializer(AuthenticatedSerializer):
+class DeviceNetworkSerializer(HostSerializer):
     new_ip = serializers.IPAddressField()
-    dns = serializers.ListField(max_length=25, required=False)
+    dns = serializers.ListField(max_length=25)
+
+
+class DNSSerializer(HostSerializer):
+    dns = serializers.ListField(max_length=25)
 
