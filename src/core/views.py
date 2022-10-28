@@ -3,7 +3,14 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .utils import SSHConnect
-from .serializers import DeviceSerializers, RouterSerializer, DeviceNetworkSerializer, DNSSerializer, HostSerializer
+from .serializers import (
+    DeviceSerializers,
+    RouterSerializer,
+    DeviceNetworkSerializer,
+    DNSSerializer,
+    HostSerializer
+)
+from .models import Devices
 
 
 class ScanNetwork(APIView):
@@ -52,6 +59,14 @@ class ScanNetwork(APIView):
 
             devices_log = list(zip(ip_address, hosts_name, hosts_status, mac_address, vendors))
 
+            for device in devices_log:
+                new_device = Devices.objects.create(ip_address=device[0],
+                                                    host_name=device[1],
+                                                    status=device[2],
+                                                    mac_address=device[3],
+                                                    vendor=device[4]
+                                                    )
+
             return Response(status=status.HTTP_200_OK, data=devices_log)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -99,8 +114,6 @@ class GetOSDevice(APIView):
             nm.scan(f"{ip_address}", arguments="--privileged -O")
 
             output = []
-            nm.all_hosts()
-
             for h in nm.all_hosts():
 
                 # get ip and mac addresses
@@ -115,7 +128,6 @@ class GetOSDevice(APIView):
                 if nm[h]['vendor'].values():
                     item['vendor'] = list(nm[h]['vendor'].values())[0]
                     output.append(item)
-                print(output)
             return Response(status=status.HTTP_200_OK, data=output)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -178,6 +190,7 @@ class ChangeDeviceIp(APIView):
     """
     change device ip address.
     """
+
     def post(self, request):
         serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
@@ -200,6 +213,7 @@ class ChangeDNS(APIView):
     """
     change device ip address.
     """
+
     def post(self, request):
         serializer = DNSSerializer(data=request.data)
         if serializer.is_valid():
