@@ -158,9 +158,9 @@ class ChangeDeviceNetworkInterFace(APIView):
         serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
             current_ip = serializer.validated_data['current_ip']
-            new_ip = serializer.validated_data['new_ip']
             username = serializer.validated_data['username']
             password = serializer.validated_data['password']
+            new_ip = serializer.validated_data['new_ip']
             dns = serializer.validated_data['dns']
 
             _handle_config(hostname=current_ip,
@@ -234,5 +234,36 @@ class ChangeGetWay(APIView):
                            getway=getway)
 
             return Response(status=status.HTTP_200_OK, data={'status': 'GetWay changed successfully.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+
+class CheckOpenPort(APIView):
+
+    def get(self, request):
+        serializer = RouterSerializer(data=request.data)
+        if serializer.is_valid():
+            device_ip = serializer.validated_data['router_ip']
+            try:
+                nm = nmap.PortScanner()
+                nm.scan(arguments=device_ip)
+
+                # Get host name and open port list
+                host_name = [(x, nm[x]['tcp']) for x in nm.all_hosts()]
+
+                # Get port, state and name from host_name
+                ports = []
+                state = []
+                name = []
+                for port in host_name[1][1]:
+                    ports.append(port)
+                    state.append(host_name[1][1][port]['state'])
+                    name.append(host_name[1][1][port]['name'])
+
+                # Create dict to response
+                devices_log = dict(zip(ports, zip(state, name)))
+                return Response(status=status.HTTP_200_OK, data=devices_log)
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Host ip is not valid."})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
