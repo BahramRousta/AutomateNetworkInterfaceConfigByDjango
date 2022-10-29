@@ -11,6 +11,7 @@ class Devices(models.Model):
     vendor = models.CharField(max_length=100)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    os = models.CharField(max_length=200, null=True, blank=True)
 
     def __str__(self):
         return "{} - {}".format(self.ip_address, self.host_name)

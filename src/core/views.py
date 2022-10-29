@@ -119,22 +119,25 @@ class GetOSDevice(APIView):
             nm = nmap.PortScanner()
             nm.scan(f"{ip_address}", arguments="--privileged -O")
 
-            output = []
+            item = {}
             for h in nm.all_hosts():
-
-                # get ip and mac addresses
-                item = nm[h]['addresses']
 
                 # get computer os
                 if nm[h]['osmatch']:
                     item['osmatch'] = nm[h]['osmatch'][0]["name"]
-                    output.append(item)
+
+                    device = Devices.objects.filter(ip_address=ip_address).first()
+                    device.os = item['osmatch']
+                    device.save()
 
                 # get cellphone vendor
                 if nm[h]['vendor'].values():
                     item['vendor'] = list(nm[h]['vendor'].values())[0]
-                    output.append(item)
-            return Response(status=status.HTTP_200_OK, data=output)
+
+                    device = Devices.objects.filter(ip_address=ip_address).first()
+                    device.os = item['vendor']
+                    device.save()
+            return Response(status=status.HTTP_200_OK, data=item)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
