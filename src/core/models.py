@@ -14,4 +14,16 @@ class Devices(models.Model):
     os = models.CharField(max_length=200, null=True, blank=True)
 
     def __str__(self):
-        return "{} - {}".format(self.ip_address, self.host_name)
+        return self.ip_address
+
+
+class Ports(models.Model):
+    device = models.ForeignKey(Devices, on_delete=models.CASCADE, related_name="ports")
+    name = models.CharField(max_length=25)
+    number = models.IntegerField()
+    state = models.CharField(max_length=10)
+
+    def __str__(self):
+        return f"{self.name} - {self.state}"
+
+

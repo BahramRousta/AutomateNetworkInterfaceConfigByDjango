@@ -10,7 +10,7 @@ from .serializers import (
     DNSSerializer,
     HostSerializer
 )
-from .models import Devices
+from .models import Devices, Ports
 
 
 class ScanNetwork(APIView):
@@ -276,6 +276,7 @@ class CheckOpenPort(APIView):
         serializer = RouterSerializer(data=request.data)
         if serializer.is_valid():
             device_ip = serializer.validated_data['router_ip']
+
             try:
                 device = Devices.objects.filter(ip_address=device_ip).first()
                 if device is not None:
@@ -293,6 +294,19 @@ class CheckOpenPort(APIView):
                         ports.append(port)
                         state.append(host_name[1][1][port]['state'])
                         name.append(host_name[1][1][port]['name'])
+
+                        try:
+                            check_port = Ports.objects.filter(number=port).first()
+
+                            if check_port.device.id == device.id:
+                                check_port.name = host_name[1][1][port]['name']
+                                check_port.state = host_name[1][1][port]['state']
+
+                        except:
+                            Ports.objects.create(device_id=device.id,
+                                                 number=port,
+                                                 name=host_name[1][1][port]['name'],
+                                                 state=host_name[1][1][port]['state'])
 
                     # Create dict to response
                     devices_log = dict(zip(ports, zip(state, name)))

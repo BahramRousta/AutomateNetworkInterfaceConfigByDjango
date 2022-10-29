@@ -1,3 +1,6 @@
 from django.contrib import admin
+from .models import Devices, Ports
 
-# Register your models here.
+
+admin.site.register(Ports)
+admin.site.register(Devices)
