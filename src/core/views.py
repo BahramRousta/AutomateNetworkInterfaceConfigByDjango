@@ -60,13 +60,19 @@ class ScanNetwork(APIView):
             devices_log = list(zip(ip_address, hosts_name, hosts_status, mac_address, vendors))
 
             for device in devices_log:
-                new_device = Devices.objects.create(ip_address=device[0],
-                                                    host_name=device[1],
-                                                    status=device[2],
-                                                    mac_address=device[3],
-                                                    vendor=device[4]
-                                                    )
-
+                try:
+                    device = Devices.objects.filter(ip_address=device[0]).first()
+                    if device:
+                        break
+                    else:
+                        new_device = Devices.objects.create(ip_address=device[0],
+                                                            host_name=device[1],
+                                                            status=device[2],
+                                                            mac_address=device[3],
+                                                            vendor=device[4]
+                                                            )
+                except:
+                    pass
             return Response(status=status.HTTP_200_OK, data=devices_log)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
