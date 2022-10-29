@@ -5,6 +5,7 @@ from .views import (
     ChangeDeviceNetworkInterFace,
     ChangeDeviceIp,
     ChangeDNS,
+    ChangeGetWay,
     PingDevice,
     CheckOpenPort
 )
@@ -14,6 +15,7 @@ urlpatterns = [
     path('change_device_net_intf/', ChangeDeviceNetworkInterFace.as_view(), name='change_device_net_intf'),
     path('change_ip/', ChangeDeviceIp.as_view(), name='change_ip'),
     path('change_dns/', ChangeDNS.as_view(), name='change_ip'),
+    path('change_getway/', ChangeGetWay.as_view(), name='change_getway'),
     path('scan_network/', ScanNetwork.as_view(), name='scan_network'),
     path('detect_os_device/', GetOSDevice.as_view(), name='detect_os_device'),
     path('ping_device/', PingDevice.as_view(), name='ping_device'),

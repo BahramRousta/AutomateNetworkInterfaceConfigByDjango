@@ -272,29 +272,31 @@ class ChangeGetWay(APIView):
 
 class CheckOpenPort(APIView):
 
-    def get(self, request):
+    def post(self, request):
         serializer = RouterSerializer(data=request.data)
         if serializer.is_valid():
             device_ip = serializer.validated_data['router_ip']
             try:
-                nm = nmap.PortScanner()
-                nm.scan(arguments=device_ip)
+                device = Devices.objects.filter(ip_address=device_ip).first()
+                if device is not None:
+                    nm = nmap.PortScanner()
+                    nm.scan(arguments=device_ip)
 
-                # Get host name and open port list
-                host_name = [(x, nm[x]['tcp']) for x in nm.all_hosts()]
+                    # Get host name and open port list
+                    host_name = [(x, nm[x]['tcp']) for x in nm.all_hosts()]
 
-                # Get port, state and name from host_name
-                ports = []
-                state = []
-                name = []
-                for port in host_name[1][1]:
-                    ports.append(port)
-                    state.append(host_name[1][1][port]['state'])
-                    name.append(host_name[1][1][port]['name'])
+                    # Get port, state and name from host_name
+                    ports = []
+                    state = []
+                    name = []
+                    for port in host_name[1][1]:
+                        ports.append(port)
+                        state.append(host_name[1][1][port]['state'])
+                        name.append(host_name[1][1][port]['name'])
 
-                # Create dict to response
-                devices_log = dict(zip(ports, zip(state, name)))
-                return Response(status=status.HTTP_200_OK, data=devices_log)
+                    # Create dict to response
+                    devices_log = dict(zip(ports, zip(state, name)))
+                    return Response(status=status.HTTP_200_OK, data=devices_log)
             except:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Host ip is not valid."})
         else:
