@@ -11,7 +11,7 @@ from .views import (
 
 
 urlpatterns = [
-    path('change_ip_address/', ChangeDeviceNetworkInterFace.as_view(), name='change_ip_address'),
+    path('change_device_net_intf/', ChangeDeviceNetworkInterFace.as_view(), name='change_device_net_intf'),
     path('change_ip/', ChangeDeviceIp.as_view(), name='change_ip'),
     path('change_dns/', ChangeDNS.as_view(), name='change_ip'),
     path('scan_network/', ScanNetwork.as_view(), name='scan_network'),

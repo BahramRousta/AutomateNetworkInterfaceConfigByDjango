@@ -60,7 +60,6 @@ class ScanNetwork(APIView):
             devices_log = list(zip(ip_address, hosts_name, hosts_status, mac_address, vendors))
 
             for device in devices_log:
-                print(device[0])
                 try:
                     mch = Devices.objects.filter(ip_address=device[0]).first()
 
@@ -185,13 +184,22 @@ class ChangeDeviceNetworkInterFace(APIView):
             new_ip = serializer.validated_data['new_ip']
             dns = serializer.validated_data['dns']
 
-            _handle_config(hostname=current_ip,
-                           username=username,
-                           password=password,
-                           new_ip=new_ip,
-                           dns=dns)
+            try:
+                device = Devices.objects.filter(ip_address=current_ip).first()
 
-            return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
+                if device is None:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
+                else:
+                    _handle_config(hostname=current_ip,
+                                   username=username,
+                                   password=password,
+                                   new_ip=new_ip,
+                                   dns=dns)
+                    device.ip_address = new_ip
+                    device.save()
+                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
