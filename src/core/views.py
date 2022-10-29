@@ -296,12 +296,13 @@ class CheckOpenPort(APIView):
                         name.append(host_name[1][1][port]['name'])
 
                         try:
+                            # Checking that the port exists in the ports table
                             check_port = Ports.objects.filter(number=port).first()
-
                             if check_port.device.id == device.id:
+                                # Update check_port status
                                 check_port.name = host_name[1][1][port]['name']
                                 check_port.state = host_name[1][1][port]['state']
-
+                                check_port.save()
                         except:
                             Ports.objects.create(device_id=device.id,
                                                  number=port,
