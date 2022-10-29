@@ -60,11 +60,11 @@ class ScanNetwork(APIView):
             devices_log = list(zip(ip_address, hosts_name, hosts_status, mac_address, vendors))
 
             for device in devices_log:
+                print(device[0])
                 try:
-                    device = Devices.objects.filter(ip_address=device[0]).first()
-                    if device:
-                        break
-                    else:
+                    mch = Devices.objects.filter(ip_address=device[0]).first()
+
+                    if mch is None:
                         new_device = Devices.objects.create(ip_address=device[0],
                                                             host_name=device[1],
                                                             status=device[2],
@@ -122,21 +122,22 @@ class GetOSDevice(APIView):
             item = {}
             for h in nm.all_hosts():
 
-                # get computer os
-                if nm[h]['osmatch']:
-                    item['osmatch'] = nm[h]['osmatch'][0]["name"]
+                try:
+                    # get computer os
+                    if nm[h]['osmatch']:
+                        item['osmatch'] = nm[h]['osmatch'][0]["name"]
 
-                    device = Devices.objects.filter(ip_address=ip_address).first()
-                    device.os = item['osmatch']
-                    device.save()
+                        device = Devices.objects.filter(ip_address=ip_address).first()
+                        device.os = item['osmatch']
+                        device.save()
+                except:
+                    # get cellphone vendor
+                    if nm[h]['vendor']:
+                        item['vendor'] = list(nm[h]['vendor'].values())[0]
+                        device = Devices.objects.filter(ip_address=ip_address).first()
+                        device.os = item['vendor']
+                        device.save()
 
-                # get cellphone vendor
-                if nm[h]['vendor'].values():
-                    item['vendor'] = list(nm[h]['vendor'].values())[0]
-
-                    device = Devices.objects.filter(ip_address=ip_address).first()
-                    device.os = item['vendor']
-                    device.save()
             return Response(status=status.HTTP_200_OK, data=item)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
