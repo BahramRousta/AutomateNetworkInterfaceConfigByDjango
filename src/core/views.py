@@ -202,16 +202,23 @@ class ChangeDeviceIp(APIView):
         serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
             current_ip = serializer.validated_data['current_ip']
-            username = serializer.validated_data['username']
-            password = serializer.validated_data['password']
             new_ip = serializer.validated_data['new_ip']
 
-            _handle_config(hostname=current_ip,
-                           username=username,
-                           password=password,
-                           new_ip=new_ip)
+            try:
+                device = Host.objects.filter(ip_address=current_ip).first()
 
-            return Response(status=status.HTTP_200_OK, data={'status': 'Changed IP successfully.'})
+                if device is None:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
+                else:
+                    _handle_config(hostname=current_ip,
+                                   username=device.username,
+                                   password=device.password,
+                                   new_ip=new_ip)
+                    device.ip_address = new_ip
+                    device.save()
+                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
@@ -225,16 +232,22 @@ class ChangeDNS(APIView):
         serializer = DNSSerializer(data=request.data)
         if serializer.is_valid():
             current_ip = serializer.validated_data['current_ip']
-            username = serializer.validated_data['username']
-            password = serializer.validated_data['password']
             dns = serializer.validated_data['dns']
+            try:
+                device = Host.objects.filter(ip_address=current_ip).first()
 
-            _handle_config(hostname=current_ip,
-                           username=username,
-                           password=password,
-                           dns=dns)
-
-            return Response(status=status.HTTP_200_OK, data={'status': 'Changed DNS successfully.'})
+                if device is None:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
+                else:
+                    _handle_config(hostname=current_ip,
+                                   username=device.username,
+                                   password=device.password,
+                                   new_ip=dns)
+                    device.ip_address = dns
+                    device.save()
+                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
@@ -243,18 +256,26 @@ class ChangeGetWay(APIView):
 
     def post(self, request):
         serializer = RouterSerializer(data=request.data)
+
         if serializer.is_valid():
             current_ip = serializer.validated_data['current_ip']
-            username = serializer.validated_data['username']
-            password = serializer.validated_data['password']
-            getway = serializer.validated_data['dns']
+            get_way = serializer.validated_data['dns']
 
-            _handle_config(hostname=current_ip,
-                           username=username,
-                           password=password,
-                           getway=getway)
+            try:
+                device = Host.objects.filter(ip_address=current_ip).first()
 
-            return Response(status=status.HTTP_200_OK, data={'status': 'GetWay changed successfully.'})
+                if device is None:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
+                else:
+                    _handle_config(hostname=current_ip,
+                                   username=device.username,
+                                   password=device.password,
+                                   new_ip=get_way)
+                    device.ip_address = get_way
+                    device.save()
+                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
