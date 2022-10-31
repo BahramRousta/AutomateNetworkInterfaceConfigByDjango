@@ -170,8 +170,6 @@ class ChangeDeviceNetworkInterFace(APIView):
         serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
             current_ip = serializer.validated_data['current_ip']
-            username = serializer.validated_data['username']
-            password = serializer.validated_data['password']
             new_ip = serializer.validated_data['new_ip']
             dns = serializer.validated_data['dns']
 
@@ -182,8 +180,8 @@ class ChangeDeviceNetworkInterFace(APIView):
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
                 else:
                     _handle_config(hostname=current_ip,
-                                   username=username,
-                                   password=password,
+                                   username=device.username,
+                                   password=device.password,
                                    new_ip=new_ip,
                                    dns=dns)
                     device.ip_address = new_ip
