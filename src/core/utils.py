@@ -4,10 +4,11 @@ from paramiko import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import AuthenticationException, SSHException
 
 REMOTE_NETWORK_INTERFACE_PATH = '/etc/netplan/01-network-manager-all.yaml'
+SSH_PATH = '/root/.ssh/id_rsa.pub'
 LOCAL_PATH = 'core/localpath/01-network-manager-all.yaml'
 
 class SSHConnect:
-    def __init__(self, hostname: str, username: str, password: str):
+    def __init__(self, hostname: str, username: str, password: str) -> object:
         self.sftp_client = None
         self.ssh_client = None
         self.hostname = hostname
@@ -57,7 +58,11 @@ class SSHConnect:
         return self.sftp_client.get(remotepath=REMOTE_NETWORK_INTERFACE_PATH, localpath=localpath)
 
     def put_file(self, localpath):
-        return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_NETWORK_INTERFACE_PATH)
+        # return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_NETWORK_INTERFACE_PATH)
+        return self.sftp_client.put(localpath=localpath, remotepath=None)
+
+    def put_ssh_key(self, localpath, remotepath):
+        return self.sftp_client.put(localpath=localpath, remotepath=remotepath)
 
     def modify_config(self, new_ip_address=None, dns=None, getway=None, localpath=None):
 
