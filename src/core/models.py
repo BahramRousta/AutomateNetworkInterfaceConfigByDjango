@@ -1,7 +1,22 @@
 from django.db import models
 
 
-class Devices(models.Model):
+class Host(models.Model):
+    ip_address = models.GenericIPAddressField()
+    username = models.CharField(max_length=100)
+    password = models.CharField(max_length=100)
+    os = models.CharField(max_length=100,
+                          null=True,
+                          blank=True)
+
+    def __str__(self):
+        return f"{self.username} - {self.ip_address}"
+
+
+class ConnectDevice(models.Model):
+    """
+    Save connected device when scan network
+    """
     ip_address = models.GenericIPAddressField()
     host_name = models.CharField(max_length=50)
     status = models.CharField(max_length=4)
@@ -19,10 +34,10 @@ class Devices(models.Model):
         return self.ip_address
 
 
-class Ports(models.Model):
-    device = models.ForeignKey(Devices,
-                               on_delete=models.CASCADE,
-                               related_name="ports")
+class Port(models.Model):
+    host = models.ForeignKey(Host,
+                             on_delete=models.CASCADE,
+                             related_name="ports")
     name = models.CharField(max_length=25)
     number = models.IntegerField()
     state = models.CharField(max_length=10)
@@ -31,5 +46,3 @@ class Ports(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.state}"
-
-
