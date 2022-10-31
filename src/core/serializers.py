@@ -24,3 +24,8 @@ class DNSSerializer(HostSerializer):
 
 class PortSerializer(serializers.Serializer):
     port = serializers.IntegerField()
+
+class SSHKeySerializer(serializers.Serializer):
+    host = serializers.IPAddressField(required=True)
+    username = serializers.CharField()
+    password = serializers.CharField()
