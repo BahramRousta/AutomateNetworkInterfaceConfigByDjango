@@ -7,11 +7,13 @@ from .views import (
     ChangeDNS,
     ChangeGetWay,
     PingDevice,
-    CheckOpenedPort
+    CheckOpenedPort,
+    AddSSHKey
 )
 
 
 urlpatterns = [
+    path('add_ssh_key/', AddSSHKey.as_view(), name='add_ssh_key'),
     path('change_device_net_intf/', ChangeDeviceNetworkInterFace.as_view(), name='change_device_net_intf'),
     path('change_ip/', ChangeDeviceIp.as_view(), name='change_ip'),
     path('change_dns/', ChangeDNS.as_view(), name='change_ip'),
