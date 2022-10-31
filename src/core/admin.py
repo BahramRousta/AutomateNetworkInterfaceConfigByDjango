@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .models import Devices, Ports
+from .models import ConnectDevice, Port, Host
 
-
-admin.site.register(Ports)
-admin.site.register(Devices)
+admin.site.register(Host)
+admin.site.register(ConnectDevice)
+admin.site.register(Port)
