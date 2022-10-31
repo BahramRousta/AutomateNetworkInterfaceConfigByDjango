@@ -1,33 +1,38 @@
 import time
+import os.path
 import yaml
 from paramiko import SSHClient, AutoAddPolicy
+from paramiko.rsakey import RSAKey
 from paramiko.ssh_exception import AuthenticationException, SSHException
 
 REMOTE_NETWORK_INTERFACE_PATH = '/etc/netplan/01-network-manager-all.yaml'
 SSH_PATH = '/root/.ssh/id_rsa.pub'
 LOCAL_PATH = 'core/localpath/01-network-manager-all.yaml'
 
+
 class SSHConnect:
-    def __init__(self, hostname: str, username: str, password: str) -> object:
+    def __init__(self, hostname: str, username: str):
         self.sftp_client = None
         self.ssh_client = None
         self.hostname = hostname
         self.username = username
-        self.password = password
 
     def open_session(self):
         """
         Open SSHConnection on remote device
         :return: ssh remote object
         """
-
         self.ssh_client = SSHClient()
+        self.ssh_client.load_system_host_keys()
         self.ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+        k = RSAKey.from_private_key_file("C:\\Users\\BahramRousta\\.ssh\\id_rsa")
+
+
 
         try:
             self.ssh_client.connect(hostname=self.hostname,
                                     username=self.username,
-                                    password=self.password)
+                                    pkey=k)
             print('Successfully connected!')
         except AuthenticationException as err:
             raise err
@@ -58,11 +63,7 @@ class SSHConnect:
         return self.sftp_client.get(remotepath=REMOTE_NETWORK_INTERFACE_PATH, localpath=localpath)
 
     def put_file(self, localpath):
-        # return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_NETWORK_INTERFACE_PATH)
-        return self.sftp_client.put(localpath=localpath, remotepath=None)
-
-    def put_ssh_key(self, localpath, remotepath):
-        return self.sftp_client.put(localpath=localpath, remotepath=remotepath)
+        return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_NETWORK_INTERFACE_PATH)
 
     def modify_config(self, new_ip_address=None, dns=None, getway=None, localpath=None):
 
@@ -84,9 +85,19 @@ class SSHConnect:
             new_config_file = yaml.dump(data, writer)
         return new_config_file
 
-    def apply_config(self, delay):
+    def apply_config(self, delay, command=None):
         remote_device = self.ssh_client.invoke_shell()
         remote_device.send(f'netplan apply\n')
+        time.sleep(delay)
+        out = remote_device.recv(65000)
+        print(out.decode())
+        print('Configuration successful')
+        self.close_session()
+        return out
+
+    def change(self, delay, command=None):
+        remote_device = self.ssh_client.invoke_shell()
+        remote_device.send(f'{command}\n')
         time.sleep(delay)
         out = remote_device.recv(65000)
         print(out.decode())

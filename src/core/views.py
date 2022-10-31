@@ -35,7 +35,7 @@ class AddSSHKey(APIView):
 
             sftp = session.open_sftp()
             sftp.put(localpath='C:\\Users\BahramRousta\\.ssh\\id_rsa.pub',
-                               remotepath='/root/.ssh/id_rsa.pub')
+                               remotepath='/home/iris/.ssh/id_rsa')
             sftp.close()
             session.close()
             return Response(status=status.HTTP_200_OK, data={'Message': 'Config done.'})
@@ -162,10 +162,9 @@ class GetOSDevice(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-def _handle_config(hostname, username, password, new_ip=None, dns=None, getway=None):
+def _handle_config(hostname, username, new_ip=None, dns=None, getway=None):
     device = SSHConnect(hostname=hostname,
-                        username=username,
-                        password=password)
+                        username=username)
     device.open_session()
     device.open_sftp_session()
     device.get_file(localpath='core/localpath/01-network-manager-all.yaml')
@@ -210,7 +209,6 @@ class ChangeDeviceNetworkInterFace(APIView):
                 else:
                     _handle_config(hostname=current_ip,
                                    username=device.username,
-                                   password=device.password,
                                    new_ip=new_ip,
                                    dns=dns)
                     device.ip_address = new_ip
@@ -241,7 +239,6 @@ class ChangeDeviceIp(APIView):
                 else:
                     _handle_config(hostname=current_ip,
                                    username=device.username,
-                                   password=device.password,
                                    new_ip=new_ip)
                     device.ip_address = new_ip
                     device.save()
@@ -264,13 +261,12 @@ class ChangeDNS(APIView):
             dns = serializer.validated_data['dns']
             try:
                 device = Host.objects.filter(ip_address=current_ip).first()
-
+                print(device)
                 if device is None:
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
                 else:
                     _handle_config(hostname=current_ip,
-                                   username=device.username,
-                                   password=device.password,
+                                   username='root',
                                    new_ip=dns)
                     device.ip_address = dns
                     device.save()
