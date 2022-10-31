@@ -8,9 +8,10 @@ from .serializers import (
     RouterSerializer,
     DeviceNetworkSerializer,
     DNSSerializer,
-    HostSerializer
+    HostSerializer,
+    PortSerializer
 )
-from .models import Devices, Ports
+from .models import ConnectDevice, Port, Host
 
 
 class ScanNetwork(APIView):
@@ -21,11 +22,10 @@ class ScanNetwork(APIView):
 
     def post(self, request):
         serializer = RouterSerializer(data=request.data)
-        data = {}
         if serializer.is_valid():
 
             """
-                Sample for check all devices up in local network:> 192.168.1.*
+                Sample for check all devices up in local network: 192.168.1.*
             """
 
             router_ip = serializer.validated_data['router_ip']
@@ -61,15 +61,15 @@ class ScanNetwork(APIView):
 
             for device in devices_log:
                 try:
-                    mch = Devices.objects.filter(ip_address=device[0]).first()
+                    mch = ConnectDevice.objects.filter(ip_address=device[0]).first()
 
                     if mch is None:
-                        new_device = Devices.objects.create(ip_address=device[0],
-                                                            host_name=device[1],
-                                                            status=device[2],
-                                                            mac_address=device[3],
-                                                            vendor=device[4]
-                                                            )
+                        new_device = ConnectDevice.objects.create(ip_address=device[0],
+                                                                  host_name=device[1],
+                                                                  status=device[2],
+                                                                  mac_address=device[3],
+                                                                  vendor=device[4]
+                                                                  )
                 except:
                     pass
             return Response(status=status.HTTP_200_OK, data=devices_log)
@@ -109,35 +109,26 @@ class GetOSDevice(APIView):
     """
 
     def get(self, request):
-        global output
         serializer = DeviceSerializers(data=request.query_params)
-        data = {}
         if serializer.is_valid():
             ip_address = serializer.validated_data['device_ip_address']
 
-            nm = nmap.PortScanner()
-            nm.scan(f"{ip_address}", arguments="--privileged -O")
+            try:
+                device = Host.objects.filter(ip_address=ip_address).first()
+                item = {}
+                if device:
+                    nm = nmap.PortScanner()
+                    nm.scan(f"{ip_address}", arguments="--privileged -O")
 
-            item = {}
-            for h in nm.all_hosts():
-
-                try:
-                    # get computer os
-                    if nm[h]['osmatch']:
-                        item['osmatch'] = nm[h]['osmatch'][0]["name"]
-
-                        device = Devices.objects.filter(ip_address=ip_address).first()
-                        device.os = item['osmatch']
-                        device.save()
-                except:
-                    # get cellphone vendor
-                    if nm[h]['vendor']:
-                        item['vendor'] = list(nm[h]['vendor'].values())[0]
-                        device = Devices.objects.filter(ip_address=ip_address).first()
-                        device.os = item['vendor']
-                        device.save()
-
-            return Response(status=status.HTTP_200_OK, data=item)
+                    for h in nm.all_hosts():
+                        # get computer os
+                        if nm[h]['osmatch']:
+                            item['osmatch'] = nm[h]['osmatch'][0]["name"]
+                            device.os = item['osmatch']
+                            device.save()
+                return Response(status=status.HTTP_200_OK, data=item)
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host not found."})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -185,7 +176,7 @@ class ChangeDeviceNetworkInterFace(APIView):
             dns = serializer.validated_data['dns']
 
             try:
-                device = Devices.objects.filter(ip_address=current_ip).first()
+                device = Host.objects.filter(ip_address=current_ip).first()
 
                 if device is None:
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
@@ -270,15 +261,15 @@ class ChangeGetWay(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
-class CheckOpenPort(APIView):
+class CheckOpenedPort(APIView):
 
-    def post(self, request):
-        serializer = RouterSerializer(data=request.data)
+    def get(self, request):
+        serializer = RouterSerializer(data=request.query_params)
         if serializer.is_valid():
             device_ip = serializer.validated_data['router_ip']
 
             try:
-                device = Devices.objects.filter(ip_address=device_ip).first()
+                device = Host.objects.filter(ip_address=device_ip).first()
                 if device is not None:
                     nm = nmap.PortScanner()
                     nm.scan(arguments=device_ip)
@@ -297,7 +288,7 @@ class CheckOpenPort(APIView):
 
                         try:
                             # Checking that the port exists in the ports table
-                            check_port = Ports.objects.filter(number=port).first()
+                            check_port = Port.objects.filter(number=port).first()
                             if check_port.device.id == device.id:
                                 # Update check_port status
                                 check_port.name = host_name[1][1][port]['name']
@@ -316,3 +307,27 @@ class CheckOpenPort(APIView):
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Host ip is not valid."})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+    def post(self, request):
+        serializer = PortSerializer(data=request.data)
+        if serializer.is_valid():
+            host = serializer.validated_data['host']
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+            port = serializer.validated_data['port']
+
+            try:
+                device = Host.objects.filter(ip_address=host).first()
+                if device is not None:
+                    device = SSHConnect(hostname=host,
+                                        username=username,
+                                        password=password)
+                    device.open_session()
+                else:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Info is not valid.'})
+            except:
+                pass
+
+
+class ClosePort(APIView):
+    pass
