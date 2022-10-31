@@ -1,4 +1,5 @@
 import nmap
+import paramiko
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,6 +14,33 @@ from .serializers import (
     SSHKeySerializer
 )
 from .models import ConnectDevice, Port, Host
+
+
+class AddSSHKey(APIView):
+
+    def post(self, request):
+        serializer = SSHKeySerializer(data=request.data)
+        if serializer.is_valid():
+            host = serializer.validated_data['host']
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+
+            session = paramiko.SSHClient()
+
+            session.load_system_host_keys()
+
+            session.connect(hostname=host,
+                            username=username,
+                            password=password)
+
+            sftp = session.open_sftp()
+            sftp.put(localpath='C:\\Users\BahramRousta\\.ssh\\id_rsa.pub',
+                               remotepath='/root/.ssh/id_rsa.pub')
+            sftp.close()
+            session.close()
+            return Response(status=status.HTTP_200_OK, data={'Message': 'Config done.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class ScanNetwork(APIView):
@@ -352,27 +380,3 @@ class CheckOpenedPort(APIView):
 class ClosePort(APIView):
     pass
 
-
-class AddSSHKey(APIView):
-
-    def post(self, request):
-        serializer = SSHKeySerializer(data=request.data)
-        if serializer.is_valid():
-            host = serializer.validated_data['host']
-            username = serializer.validated_data['username']
-            password = serializer.validated_data['password']
-
-            device = SSHConnect(hostname=host,
-                                username=username,
-                                password=password)
-            device.open_session()
-            device.open_sftp_session()
-
-            device.put_ssh_key(localpath='C:\\Users\BahramRousta\\.ssh\\id_rsa.pub',
-                               remotepath='/root/.ssh/id_rsa.pub')
-
-            device.close_sftp_session()
-            device.close_session()
-            return Response(status=status.HTTP_200_OK, data={'done': 'done'})
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
