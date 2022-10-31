@@ -9,7 +9,8 @@ from .serializers import (
     DeviceNetworkSerializer,
     DNSSerializer,
     HostSerializer,
-    PortSerializer
+    PortSerializer,
+    SSHKeySerializer
 )
 from .models import ConnectDevice, Port, Host
 
@@ -350,3 +351,28 @@ class CheckOpenedPort(APIView):
 
 class ClosePort(APIView):
     pass
+
+
+class AddSSHKey(APIView):
+
+    def post(self, request):
+        serializer = SSHKeySerializer(data=request.data)
+        if serializer.is_valid():
+            host = serializer.validated_data['host']
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+
+            device = SSHConnect(hostname=host,
+                                username=username,
+                                password=password)
+            device.open_session()
+            device.open_sftp_session()
+
+            device.put_ssh_key(localpath='C:\\Users\BahramRousta\\.ssh\\id_rsa.pub',
+                               remotepath='/root/.ssh/id_rsa.pub')
+
+            device.close_sftp_session()
+            device.close_session()
+            return Response(status=status.HTTP_200_OK, data={'done': 'done'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
