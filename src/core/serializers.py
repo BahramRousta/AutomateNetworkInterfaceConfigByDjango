@@ -10,8 +10,6 @@ class RouterSerializer(serializers.Serializer):
 
 
 class HostSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=25, required=True)
-    password = serializers.CharField(max_length=25, required=True)
     current_ip = serializers.IPAddressField(required=True)
 
 
@@ -23,3 +21,6 @@ class DeviceNetworkSerializer(HostSerializer):
 class DNSSerializer(HostSerializer):
     dns = serializers.ListField(max_length=25)
 
+
+class PortSerializer(serializers.Serializer):
+    port = serializers.IntegerField()
