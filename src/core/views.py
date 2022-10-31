@@ -308,16 +308,16 @@ class CheckOpenedPort(APIView):
                         try:
                             # Checking that the port exists in the ports table
                             check_port = Port.objects.filter(number=port).first()
-                            if check_port.device.id == device.id:
+                            if check_port.host.id == device.id:
                                 # Update check_port status
                                 check_port.name = host_name[1][1][port]['name']
                                 check_port.state = host_name[1][1][port]['state']
                                 check_port.save()
                         except:
-                            Ports.objects.create(device_id=device.id,
-                                                 number=port,
-                                                 name=host_name[1][1][port]['name'],
-                                                 state=host_name[1][1][port]['state'])
+                            Port.objects.create(host_id=device.id,
+                                                number=port,
+                                                name=host_name[1][1][port]['name'],
+                                                state=host_name[1][1][port]['state'])
 
                     # Create dict to response
                     devices_log = dict(zip(ports, zip(state, name)))
