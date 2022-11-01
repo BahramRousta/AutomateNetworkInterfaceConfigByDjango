@@ -1,3 +1,5 @@
+import time
+
 import nmap
 import paramiko
 from rest_framework import status
@@ -35,7 +37,7 @@ class AddSSHKey(APIView):
 
             sftp = session.open_sftp()
             sftp.put(localpath='C:\\Users\BahramRousta\\.ssh\\id_rsa.pub',
-                               remotepath='/home/iris/.ssh/id_rsa')
+                     remotepath='/home/iris/.ssh/id_rsa')
             sftp.close()
             session.close()
             return Response(status=status.HTTP_200_OK, data={'Message': 'Config done.'})
@@ -294,7 +296,7 @@ class ChangeGetWay(APIView):
                 else:
                     _handle_config(hostname=current_ip,
                                    username=device.username,
-                                   get_way=get_way,)
+                                   get_way=get_way, )
                     device.get_way = get_way
                     device.save()
                     return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
@@ -313,13 +315,15 @@ class CheckOpenedPort(APIView):
 
             try:
                 device = Host.objects.filter(ip_address=device_ip).first()
-                if device is not None:
+
+                if device is None:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Host ip is not valid."})
+                else:
                     nm = nmap.PortScanner()
                     nm.scan(arguments=device_ip)
 
                     # Get host name and open port list
                     host_name = [(x, nm[x]['tcp']) for x in nm.all_hosts()]
-
                     # Get port, state and name from host_name
                     ports = []
                     state = []
@@ -328,7 +332,6 @@ class CheckOpenedPort(APIView):
                         ports.append(port)
                         state.append(host_name[1][1][port]['state'])
                         name.append(host_name[1][1][port]['name'])
-
                         try:
                             # Checking that the port exists in the ports table
                             check_port = Port.objects.filter(number=port).first()
@@ -347,7 +350,7 @@ class CheckOpenedPort(APIView):
                     devices_log = dict(zip(ports, zip(state, name)))
                     return Response(status=status.HTTP_200_OK, data=devices_log)
             except:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Host ip is not valid."})
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Scan failed"})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
@@ -355,23 +358,30 @@ class CheckOpenedPort(APIView):
         serializer = PortSerializer(data=request.data)
         if serializer.is_valid():
             host = serializer.validated_data['host']
-            username = serializer.validated_data['username']
-            password = serializer.validated_data['password']
             port = serializer.validated_data['port']
 
             try:
                 device = Host.objects.filter(ip_address=host).first()
-                if device is not None:
-                    device = SSHConnect(hostname=host,
-                                        username=username,
-                                        password=password)
-                    device.open_session()
+
+                if device is None:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host ip is not valid."})
                 else:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Info is not valid.'})
+                    connect = SSHConnect(hostname=host,
+                                         username=device.username)
+                    session = connect.open_session()
+                    remote = session.invoke_shell()
+                    remote.send(f'sudo ufw allow {port}/tcp\n')
+                    time.sleep(2)
+                    out = remote.recv(65000)
+                    print(out.decode())
+                    print('Configuration successful')
+                    remote.close()
+                    return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
             except:
-                pass
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
 class ClosePort(APIView):
     pass
-

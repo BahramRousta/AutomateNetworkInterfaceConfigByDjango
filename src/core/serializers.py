@@ -28,6 +28,7 @@ class DNSSerializer(HostSerializer):
 
 
 class PortSerializer(serializers.Serializer):
+    host = serializers.IPAddressField()
     port = serializers.IntegerField()
 
 
