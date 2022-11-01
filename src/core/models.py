@@ -3,6 +3,8 @@ from django.db import models
 
 class Host(models.Model):
     ip_address = models.GenericIPAddressField()
+    dns = models.CharField(max_length=25)
+    get_way = models.GenericIPAddressField()
     username = models.CharField(max_length=100)
     password = models.CharField(max_length=100)
     os = models.CharField(max_length=100,
