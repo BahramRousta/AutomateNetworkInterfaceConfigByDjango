@@ -11,7 +11,7 @@ from .serializers import (
     DNSSerializer,
     HostSerializer,
     PortSerializer,
-    SSHKeySerializer
+    SSHKeySerializer, ChangeIPSerializer
 )
 from .models import ConnectDevice, Port, Host
 
@@ -162,7 +162,7 @@ class GetOSDevice(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-def _handle_config(hostname, username, new_ip=None, dns=None, getway=None):
+def _handle_config(hostname, username, new_ip=None, dns=None, get_way=None):
     device = SSHConnect(hostname=hostname,
                         username=username)
     device.open_session()
@@ -177,8 +177,8 @@ def _handle_config(hostname, username, new_ip=None, dns=None, getway=None):
         device.modify_config(dns=dns,
                              localpath='core/localpath/01-network-manager-all.yaml')
 
-    if getway:
-        device.modify_config(getway=getway,
+    if get_way:
+        device.modify_config(get_way=get_way,
                              localpath='core/localpath/01-network-manager-all.yaml')
 
     device.put_file(localpath='core/localpath/01-network-manager-all.yaml')
@@ -226,7 +226,7 @@ class ChangeDeviceIp(APIView):
     """
 
     def post(self, request):
-        serializer = DeviceNetworkSerializer(data=request.data)
+        serializer = ChangeIPSerializer(data=request.data)
         if serializer.is_valid():
             current_ip = serializer.validated_data['current_ip']
             new_ip = serializer.validated_data['new_ip']
@@ -251,7 +251,7 @@ class ChangeDeviceIp(APIView):
 
 class ChangeDNS(APIView):
     """
-    change device ip address.
+    change device dns address.
     """
 
     def post(self, request):
@@ -261,14 +261,14 @@ class ChangeDNS(APIView):
             dns = serializer.validated_data['dns']
             try:
                 device = Host.objects.filter(ip_address=current_ip).first()
-                print(device)
+
                 if device is None:
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
                 else:
                     _handle_config(hostname=current_ip,
-                                   username='root',
-                                   new_ip=dns)
-                    device.ip_address = dns
+                                   username=device.username,
+                                   dns=dns)
+                    device.dns = dns
                     device.save()
                     return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
             except:
@@ -294,9 +294,8 @@ class ChangeGetWay(APIView):
                 else:
                     _handle_config(hostname=current_ip,
                                    username=device.username,
-                                   password=device.password,
-                                   new_ip=get_way)
-                    device.ip_address = get_way
+                                   get_way=get_way,)
+                    device.get_way = get_way
                     device.save()
                     return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
             except:

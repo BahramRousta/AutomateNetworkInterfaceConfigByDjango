@@ -22,6 +22,7 @@ class ChangeIPSerializer(serializers.Serializer):
     current_ip = serializers.IPAddressField()
     new_ip = serializers.IPAddressField()
 
+
 class DNSSerializer(HostSerializer):
     dns = serializers.ListField(max_length=25)
 

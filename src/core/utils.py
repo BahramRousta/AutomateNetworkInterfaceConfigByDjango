@@ -65,7 +65,7 @@ class SSHConnect:
     def put_file(self, localpath):
         return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_NETWORK_INTERFACE_PATH)
 
-    def modify_config(self, new_ip_address=None, dns=None, getway=None, localpath=None):
+    def modify_config(self, new_ip_address=None, dns=None, get_way=None, localpath=None):
 
         with open(localpath, 'r') as reader:
             data = yaml.safe_load(reader)
@@ -78,8 +78,8 @@ class SSHConnect:
             if dns:
                 data['network']['ethernets']['wlp18s0']['nameservers']['addresses'] = dns
 
-            if getway:
-                data['network']['ethernets']['wlp18s0']['gateway4'] = getway
+            if get_way:
+                data['network']['ethernets']['wlp18s0']['gateway4'] = get_way
 
         with open(localpath, 'w') as writer:
             new_config_file = yaml.dump(data, writer)
@@ -88,16 +88,6 @@ class SSHConnect:
     def apply_config(self, delay, command=None):
         remote_device = self.ssh_client.invoke_shell()
         remote_device.send(f'netplan apply\n')
-        time.sleep(delay)
-        out = remote_device.recv(65000)
-        print(out.decode())
-        print('Configuration successful')
-        self.close_session()
-        return out
-
-    def change(self, delay, command=None):
-        remote_device = self.ssh_client.invoke_shell()
-        remote_device.send(f'{command}\n')
         time.sleep(delay)
         out = remote_device.recv(65000)
         print(out.decode())
