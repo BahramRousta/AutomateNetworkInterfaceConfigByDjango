@@ -13,7 +13,8 @@ from .serializers import (
     DNSSerializer,
     HostSerializer,
     PortSerializer,
-    SSHKeySerializer, ChangeIPSerializer
+    SSHKeySerializer,
+    ChangeIPSerializer
 )
 from .models import ConnectDevice, Port, Host
 
@@ -150,7 +151,6 @@ class GetOSDevice(APIView):
                 if device:
                     nm = nmap.PortScanner()
                     nm.scan(f"{ip_address}", arguments="--privileged -O")
-
                     for h in nm.all_hosts():
                         # get computer os
                         if nm[h]['osmatch']:
@@ -308,6 +308,42 @@ class ChangeGetWay(APIView):
 
 class CheckOpenedPort(APIView):
 
+    def _change_port_status(self, request):
+        serializer = PortSerializer(data=request.data)
+        if serializer.is_valid():
+            host = serializer.validated_data['host']
+            port = serializer.validated_data['port']
+
+            try:
+                device = Host.objects.filter(ip_address=host).first()
+
+                if device is None:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host ip is not valid."})
+                else:
+                    connect = SSHConnect(hostname=host,
+                                         username=device.username)
+                    session = connect.open_session()
+                    remote = session.invoke_shell()
+
+                    # post method open port on server
+                    if request.method == "POST":
+                        remote.send(f'sudo ufw allow {port}/tcp\n')
+
+                    # patch method close port on server
+                    if request.method == "PATCH":
+                        remote.send(f'sudo ufw deny {port}/tcp\n')
+
+                    time.sleep(2)
+                    out = remote.recv(65000)
+                    print(out.decode())
+                    print('Configuration successful')
+                    remote.close()
+                    return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
     def get(self, request):
         serializer = RouterSerializer(data=request.query_params)
         if serializer.is_valid():
@@ -355,33 +391,13 @@ class CheckOpenedPort(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
     def post(self, request):
-        serializer = PortSerializer(data=request.data)
-        if serializer.is_valid():
-            host = serializer.validated_data['host']
-            port = serializer.validated_data['port']
+        """
+        Open port on server by using ufw
+        """
+        return self._change_port_status(request=request)
 
-            try:
-                device = Host.objects.filter(ip_address=host).first()
-
-                if device is None:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host ip is not valid."})
-                else:
-                    connect = SSHConnect(hostname=host,
-                                         username=device.username)
-                    session = connect.open_session()
-                    remote = session.invoke_shell()
-                    remote.send(f'sudo ufw allow {port}/tcp\n')
-                    time.sleep(2)
-                    out = remote.recv(65000)
-                    print(out.decode())
-                    print('Configuration successful')
-                    remote.close()
-                    return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
-            except:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
-
-
-class ClosePort(APIView):
-    pass
+    def patch(self, request):
+        """
+        Close port on server by using ufw
+        """
+        return self._change_port_status(request=request)
