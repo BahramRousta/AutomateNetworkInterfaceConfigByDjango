@@ -118,21 +118,27 @@ class PingDevice(APIView):
     """
 
     def get(self, request):
+
         serializer = DeviceSerializers(data=request.query_params)
         if serializer.is_valid():
-            device_ip_address = serializer.validated_data['device_ip_address']
-            nm = nmap.PortScanner()
-            nm.scan(hosts=f'{device_ip_address}', arguments='-n -sP')
-            data = {}
-            hosts_list = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
+            ip_address = serializer.validated_data['ip_address']
 
-            for host, device_status in hosts_list:
-                if device_status == "Down" or "":
-                    break
-                else:
-                    data['status'] = f"{host} is {device_status}"
-                    return Response(status=status.HTTP_200_OK, data=data)
-            return Response(status=status.HTTP_400_BAD_REQUEST, data={'status': 'Host is down'})
+            opt_put = []
+            for ip in ip_address:
+                data = {}
+                nm = nmap.PortScanner()
+
+                nm.scan(hosts=f'{ip}', arguments='-n -sP')
+
+                hosts_list = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
+
+                for host, device_status in hosts_list:
+                    if device_status == "Down" or "":
+                        return Response(status=status.HTTP_400_BAD_REQUEST, data={'status': 'Host is down'})
+                    else:
+                        data[f'{ip} status'] = f"{host} is {device_status}"
+                        opt_put.append(data[f'{ip} status'])
+            return Response(status=status.HTTP_200_OK, data=opt_put)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
