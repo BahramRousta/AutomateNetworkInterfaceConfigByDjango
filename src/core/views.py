@@ -30,7 +30,9 @@ class AddSSHKey(APIView):
 
             session = paramiko.SSHClient()
 
-            session.load_system_host_keys()
+            session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            # session.load_system_host_keys()
 
             session.connect(hostname=host,
                             username=username,
@@ -38,7 +40,7 @@ class AddSSHKey(APIView):
 
             sftp = session.open_sftp()
             sftp.put(localpath='C:\\Users\BahramRousta\\.ssh\\id_rsa.pub',
-                     remotepath='/home/iris/.ssh/id_rsa')
+                     remotepath=f'/{username}/.ssh/authorized_keys')
             sftp.close()
             session.close()
             return Response(status=status.HTTP_200_OK, data={'Message': 'Config done.'})
@@ -140,28 +142,33 @@ class GetOSDevice(APIView):
     Detect device OS.
     """
 
-    def get(self, request):
-        serializer = DeviceSerializers(data=request.query_params)
+    def post(self, request):
+        serializer = DeviceSerializers(data=request.data)
         if serializer.is_valid():
-            ip_address = serializer.validated_data['device_ip_address']
+            ip_address = serializer.validated_data['ip_address']
 
-            try:
-                device = Host.objects.filter(ip_address=ip_address).first()
+            oup_put = []
+            for ip in ip_address:
                 item = {}
-                if device:
-                    nm = nmap.PortScanner()
-                    nm.scan(f"{ip_address}", arguments="--privileged -O")
-                    for h in nm.all_hosts():
-                        # get computer os
-                        if nm[h]['osmatch']:
-                            item['osmatch'] = nm[h]['osmatch'][0]["name"]
-                            device.os = item['osmatch']
-                            device.save()
-                return Response(status=status.HTTP_200_OK, data=item)
-            except:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host not found."})
+                try:
+                    device = Host.objects.filter(ip_address=ip).first()
+                    if device is None:
+                        return Response(status=status.HTTP_408_REQUEST_TIMEOUT, data="Host is not valid.")
+                    else:
+                        nm = nmap.PortScanner()
+                        nm.scan(f"{ip}", arguments="--privileged -O")
+                        for h in nm.all_hosts():
+                            # get computer os
+                            if nm[h]['osmatch']:
+                                item[f'{ip}'] = nm[h]['osmatch'][0]["name"]
+                                oup_put.append(item)
+                                device.os = item[f'{ip}']
+                                device.save()
+                except:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Os detect failed.'})
+            return Response(status=status.HTTP_200_OK, data=oup_put)
         else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
 def _handle_config(hostname, username, new_ip=None, dns=None, get_way=None):
@@ -306,7 +313,7 @@ class ChangeGetWay(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
-class CheckOpenedPort(APIView):
+class CheckPort(APIView):
 
     def _change_port_status(self, request):
         serializer = PortSerializer(data=request.data)
@@ -401,3 +408,41 @@ class CheckOpenedPort(APIView):
         Close port on server by using ufw
         """
         return self._change_port_status(request=request)
+
+
+class FireWall(APIView):
+
+    def get(self, request):
+        """
+        Enable firewall status
+        :param request:
+        :return:
+        """
+        serializer = HostSerializer(data=request.query_params)
+        if serializer.is_valid():
+            host = serializer.validated_data['current_ip']
+
+            try:
+                device = Host.objects.filter(ip_address=host).first()
+
+                if device is None:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host ip is not valid."})
+                else:
+                    connect = SSHConnect(hostname=host,
+                                         username=device.username)
+                    session = connect.open_session()
+                    remote = session.invoke_shell()
+                    commands = ['ufw enable\n', 'y\n']
+                    for command in commands:
+                        remote.send(f'{command}')
+                    time.sleep(2)
+                    out = remote.recv(2000)
+                    print(out.decode())
+                    print('Configuration successful')
+                    remote.close()
+                    return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
