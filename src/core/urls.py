@@ -9,12 +9,14 @@ from .views import (
     PingDevice,
     CheckPort,
     AddSSHKey,
-    FireWall
+    FireWall,
+    FindDeviceNetworkConnection
 )
 
 
 urlpatterns = [
     path('add_ssh_key/', AddSSHKey.as_view(), name='add_ssh_key'),
+    path('find_net_connection/', FindDeviceNetworkConnection.as_view(), name='find_net_connection'),
     path('change_device_net_intf/', ChangeDeviceNetworkInterFace.as_view(), name='change_device_net_intf'),
     path('change_ip/', ChangeDeviceIp.as_view(), name='change_ip'),
     path('change_dns/', ChangeDNS.as_view(), name='change_ip'),

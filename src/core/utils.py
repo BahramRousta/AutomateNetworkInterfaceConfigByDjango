@@ -65,27 +65,33 @@ class SSHConnect:
     def put_file(self, localpath):
         return self.sftp_client.put(localpath=localpath, remotepath=REMOTE_NETWORK_INTERFACE_PATH)
 
-    def modify_config(self, new_ip_address=None, dns=None, get_way=None, localpath=None):
+    def modify_config(self, new_ip_address=None, dns=None, get_way=None, localpath=None, ethernets=None):
 
         with open(localpath, 'r') as reader:
             data = yaml.safe_load(reader)
 
-            # Modify IP address
-            if new_ip_address:
-                data['network']['ethernets']['wlp18s0']['addresses'] = [new_ip_address]
+            for key,  value in list(data['network']['ethernets'].items()):
 
-            # Modify DNS
-            if dns:
-                data['network']['ethernets']['wlp18s0']['nameservers']['addresses'] = dns
+                if ethernets != key:
+                    data['network']['ethernets'][f'{ethernets}'] = data['network']['ethernets'].pop(str(key))
 
-            if get_way:
-                data['network']['ethernets']['wlp18s0']['gateway4'] = get_way
+                if new_ip_address:
+                    # Modify IP address
+                    data['network']['ethernets'][f'{ethernets}']['addresses'] = [new_ip_address]
+
+                if dns:
+                    # Modify DNS
+                    data['network']['ethernets'][ethernets]['nameservers']['addresses'] = dns
+
+                if get_way:
+                    # Modify Get_way
+                    data['network']['ethernets'][ethernets]['gateway4'] = get_way
 
         with open(localpath, 'w') as writer:
             new_config_file = yaml.dump(data, writer)
         return new_config_file
 
-    def apply_config(self, delay, command=None):
+    def apply_config(self, delay):
         remote_device = self.ssh_client.invoke_shell()
         remote_device.send(f'netplan apply\n')
         time.sleep(delay)

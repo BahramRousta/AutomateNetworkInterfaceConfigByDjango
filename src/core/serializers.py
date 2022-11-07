@@ -13,10 +13,10 @@ class HostSerializer(serializers.Serializer):
     current_ip = serializers.IPAddressField(required=True)
 
 
-class DeviceNetworkSerializer(HostSerializer):
-    new_ip = serializers.IPAddressField()
-    dns = serializers.ListField(max_length=25)
-
+class DeviceNetworkSerializer(serializers.Serializer):
+    # new_ip = serializers.IPAddressField()
+    # dns = serializers.ListField()
+    devices = serializers.ListField()
 
 class ChangeIPSerializer(serializers.Serializer):
     current_ip = serializers.IPAddressField()
