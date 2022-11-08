@@ -9,11 +9,9 @@ from .serializers import (
     DeviceSerializers,
     RouterSerializer,
     DeviceNetworkSerializer,
-    DNSSerializer,
     HostSerializer,
     PortSerializer,
     SSHKeySerializer,
-    ChangeIPSerializer
 )
 from .models import ConnectDevice, Port, Host
 
@@ -224,6 +222,9 @@ def _handle_config(hostname, username, new_ip=None, dns=None, get_way=None, ethe
 
     device.open_sftp_session()
 
+    if new_ip:
+        device.modify_config(new_ip_address=f'{new_ip}/24', ethernets=ethernets,
+                             localpath='core/localpath/01-network-manager-all.yaml')
     device.modify_config(dns=dns, get_way=get_way, ethernets=ethernets, new_ip_address=f'{new_ip}/24',
                              localpath='core/localpath/01-network-manager-all.yaml')
 
@@ -235,44 +236,41 @@ def _handle_config(hostname, username, new_ip=None, dns=None, get_way=None, ethe
     return None
 
 
-def _change_network_interface(request):
-    serializer = DeviceNetworkSerializer(data=request.data)
-    if serializer.is_valid():
-        devices = serializer.validated_data['devices']
-
-        for device in devices:
-            current_ip = device['current_ip']
-            new_ip = device['new_ip']
-            dns = device['dns']
-            get_way = device['get_way']
-
-            try:
-                host = Host.objects.filter(ip_address=current_ip).first()
-
-                if host is None:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Host ip is not valid.'})
-                else:
-                    _handle_config(hostname=current_ip,
-                                   username=host.username,
-                                   new_ip=new_ip,
-                                   dns=dns,
-                                   ethernets=host.network_card_name,
-                                   get_way=get_way)
-                host.ip_address = new_ip
-                host.save()
-                return Response(status=status.HTTP_200_OK, data={'status': 'Configuration done.'})
-            except:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
-    else:
-        return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
-
-
 class ChangeDeviceNetworkInterFace(APIView):
     """
     Change linux(Ubuntu) device ip address through ssh and sftp connection.
     """
     def post(self, request):
-        return _change_network_interface(request)
+        serializer = DeviceNetworkSerializer(data=request.data)
+        if serializer.is_valid():
+            devices = serializer.validated_data['devices']
+
+            for device in devices:
+                current_ip = device['current_ip']
+                new_ip = device['new_ip']
+                dns = device['dns']
+                get_way = device['get_way']
+
+                try:
+                    host = Host.objects.filter(ip_address=current_ip).first()
+
+                    if host is None:
+                        return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Host ip is not valid.'})
+                    else:
+                        _handle_config(hostname=current_ip,
+                                       username=host.username,
+                                       new_ip=new_ip,
+                                       dns=dns,
+                                       ethernets=host.network_card_name,
+                                       get_way=get_way)
+                    host.ip_address = new_ip
+                    host.save()
+                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration done.'})
+                except:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
 
 class ChangeDeviceIp(APIView):
     """
@@ -280,25 +278,29 @@ class ChangeDeviceIp(APIView):
     """
 
     def post(self, request):
-        serializer = HostSerializer(data=request.data)
+        serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
-            current_ip = serializer.validated_data['current_ip']
-            new_ip = serializer.validated_data['new_ip']
+            devices = serializer.validated_data['devices']
 
-            try:
-                device = Host.objects.filter(ip_address=current_ip).first()
+            for device in devices:
+                current_ip = device['current_ip']
+                new_ip = device['new_ip']
 
-                if device is None:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
-                else:
-                    _handle_config(hostname=current_ip,
-                                   username=device.username,
-                                   new_ip=new_ip)
-                    device.ip_address = new_ip
-                    device.save()
-                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
-            except:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+                try:
+                    host = Host.objects.filter(ip_address=current_ip).first()
+
+                    if host is None:
+                        return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Host ip is not valid.'})
+                    else:
+                        _handle_config(hostname=current_ip,
+                                       username=host.username,
+                                       new_ip=new_ip,
+                                       ethernets=host.network_card_name)
+                    host.ip_address = new_ip
+                    host.save()
+                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration done.'})
+                except:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
@@ -309,24 +311,29 @@ class ChangeDNS(APIView):
     """
 
     def post(self, request):
-        serializer = DNSSerializer(data=request.data)
+        serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
-            current_ip = serializer.validated_data['current_ip']
-            dns = serializer.validated_data['dns']
-            try:
-                device = Host.objects.filter(ip_address=current_ip).first()
+            devices = serializer.validated_data['devices']
 
-                if device is None:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
-                else:
-                    _handle_config(hostname=current_ip,
-                                   username=device.username,
-                                   dns=dns)
-                    device.dns = dns
-                    device.save()
-                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
-            except:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+            for device in devices:
+                current_ip = device['current_ip']
+                dns = device['dns']
+
+                try:
+                    host = Host.objects.filter(ip_address=current_ip).first()
+
+                    if host is None:
+                        return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Host ip is not valid.'})
+                    else:
+                        _handle_config(hostname=current_ip,
+                                       username=host.username,
+                                       dns=dns,
+                                       ethernets=host.network_card_name)
+                    host.dns = dns
+                    host.save()
+                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration done.'})
+                except:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
@@ -334,26 +341,29 @@ class ChangeDNS(APIView):
 class ChangeGetWay(APIView):
 
     def post(self, request):
-        serializer = RouterSerializer(data=request.data)
-
+        serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
-            current_ip = serializer.validated_data['current_ip']
-            get_way = serializer.validated_data['dns']
+            devices = serializer.validated_data['devices']
 
-            try:
-                device = Host.objects.filter(ip_address=current_ip).first()
+            for device in devices:
+                current_ip = device['current_ip']
+                get_way = device['get_way']
 
-                if device is None:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
-                else:
-                    _handle_config(hostname=current_ip,
-                                   username=device.username,
-                                   get_way=get_way, )
-                    device.get_way = get_way
-                    device.save()
-                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration is down.'})
-            except:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+                try:
+                    host = Host.objects.filter(ip_address=current_ip).first()
+
+                    if host is None:
+                        return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Host ip is not valid.'})
+                    else:
+                        _handle_config(hostname=current_ip,
+                                       username=host.username,
+                                       ethernets=host.network_card_name,
+                                       get_way=get_way)
+                    host.get_way = get_way
+                    host.save()
+                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration done.'})
+                except:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 

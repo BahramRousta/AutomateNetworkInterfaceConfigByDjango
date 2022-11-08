@@ -71,11 +71,13 @@ class SSHConnect:
             data = yaml.safe_load(reader)
 
             for key,  value in list(data['network']['ethernets'].items()):
-
+                print(ethernets)
+                print(key)
                 if ethernets != key:
                     data['network']['ethernets'][f'{ethernets}'] = data['network']['ethernets'].pop(str(key))
 
                 if new_ip_address:
+                    print(new_ip_address)
                     # Modify IP address
                     data['network']['ethernets'][f'{ethernets}']['addresses'] = [new_ip_address]
 

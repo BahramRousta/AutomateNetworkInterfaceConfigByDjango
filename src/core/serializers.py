@@ -10,21 +10,14 @@ class RouterSerializer(serializers.Serializer):
 
 
 class HostSerializer(serializers.Serializer):
-    current_ip = serializers.IPAddressField(required=True)
+    current_ip = serializers.IPAddressField(required=False)
+    new_ip = serializers.IPAddressField(required=False)
+    dns = serializers.ListField(required=False)
+    get_way = serializers.IPAddressField(required=False)
 
 
 class DeviceNetworkSerializer(serializers.Serializer):
-    # new_ip = serializers.IPAddressField()
-    # dns = serializers.ListField()
-    devices = serializers.ListField()
-
-class ChangeIPSerializer(serializers.Serializer):
-    current_ip = serializers.IPAddressField()
-    new_ip = serializers.IPAddressField()
-
-
-class DNSSerializer(HostSerializer):
-    dns = serializers.ListField(max_length=25)
+    devices = serializers.ListField(child=HostSerializer())
 
 
 class PortSerializer(serializers.Serializer):
@@ -34,5 +27,5 @@ class PortSerializer(serializers.Serializer):
 
 class SSHKeySerializer(serializers.Serializer):
     host = serializers.IPAddressField(required=True)
-    username = serializers.CharField()
-    password = serializers.CharField()
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True)
