@@ -27,8 +27,6 @@ class SSHConnect:
         self.ssh_client.set_missing_host_key_policy(AutoAddPolicy())
         k = RSAKey.from_private_key_file("C:\\Users\\BahramRousta\\.ssh\\id_rsa")
 
-
-
         try:
             self.ssh_client.connect(hostname=self.hostname,
                                     username=self.username,

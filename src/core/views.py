@@ -389,11 +389,11 @@ class CheckPort(APIView):
 
                     # post method open port on server
                     if request.method == "POST":
-                        remote.send(f'sudo ufw allow {port}/tcp\n')
+                        remote.send(f'sudo ufw allow {port}\n')
 
                     # patch method close port on server
                     if request.method == "PATCH":
-                        remote.send(f'sudo ufw deny {port}/tcp\n')
+                        remote.send(f'sudo ufw deny {port}\n')
 
                     time.sleep(2)
                     out = remote.recv(65000)
@@ -467,31 +467,46 @@ class CheckPort(APIView):
 
 class FireWall(APIView):
 
-    def get(self, request):
-        """
-        Enable firewall status
-        :param request:
-        :return:
-        """
-        serializer = HostSerializer(data=request.query_params)
+    def _change_firewall_status(self, request):
+
+        if request.method == "GET":
+            serializer = DeviceSerializers(data=request.query_params)
+        else:
+            serializer = DeviceSerializers(data=request.data)
         if serializer.is_valid():
-            host = serializer.validated_data['current_ip']
+            ip_address = serializer.validated_data['ip_address']
 
             try:
-                device = Host.objects.filter(ip_address=host).first()
-
+                device = Host.objects.filter(ip_address=ip_address[0]).first()
                 if device is None:
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host ip is not valid."})
                 else:
-                    connect = SSHConnect(hostname=host,
+                    connect = SSHConnect(hostname=ip_address[0],
                                          username=device.username)
                     session = connect.open_session()
                     remote = session.invoke_shell()
-                    commands = ['ufw enable\n', 'y\n']
-                    for command in commands:
-                        remote.send(f'{command}')
+
+                    if request.method == "GET":
+                        remote.send(f'ufw status\n')
+                        time.sleep(2)
+                        out = remote.recv(65000)
+                        check = out.decode().split()
+                        remote.close()
+                        if 'active' in check:
+                            return Response(status=status.HTTP_200_OK, data={'Message': 'Firewall is active.'})
+                        else:
+                            return Response(status=status.HTTP_200_OK, data={'Message': 'Firewall is disable.'})
+
+                    if request.method == "POST":
+                        commands = [f'ufw enable\n', 'y\n']
+                        for command in commands:
+                            remote.send(command)
+
+                    if request.method == "PATCH":
+                        remote.send(f'ufw disable\n')
+
                     time.sleep(2)
-                    out = remote.recv(2000)
+                    out = remote.recv(65000)
                     print(out.decode())
                     print('Configuration successful')
                     remote.close()
@@ -501,3 +516,26 @@ class FireWall(APIView):
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
+    def get(self, request):
+        """
+        Get ufw firewall status
+        :param request:
+        :return:
+        """
+        return self._change_firewall_status(request=request)
+
+    def post(self, request):
+        """
+        Enable ufw firewall
+        :param request:
+        :return:
+        """
+        return self._change_firewall_status(request=request)
+
+    def patch(self, request):
+        """
+        Disable ufw firewall
+        :param request:
+        :return:
+        """
+        return self._change_firewall_status(request=request)

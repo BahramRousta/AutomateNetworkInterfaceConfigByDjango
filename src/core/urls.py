@@ -26,4 +26,6 @@ urlpatterns = [
     path('ping_device/', PingDevice.as_view(), name='ping_device'),
     path('open_port/', CheckPort.as_view(), name='open_port'),
     path('enable_firewall/', FireWall.as_view(), name='enable_firewall'),
+    path('disable_firewall/', FireWall.as_view(), name='disable_firewall'),
+    path('get_firewall_status/', FireWall.as_view(), name='get_firewall_status'),
 ]
