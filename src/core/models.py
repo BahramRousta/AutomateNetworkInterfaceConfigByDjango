@@ -13,7 +13,7 @@ class Host(models.Model):
     network_card_name = models.CharField(max_length=25, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.username} - {self.ip_address}"
+        return self.ip_address
 
 
 class ConnectDevice(models.Model):

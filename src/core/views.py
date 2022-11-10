@@ -4,7 +4,7 @@ import paramiko
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .utils import SSHConnect
+from .utils import SSHConnect, _handle_config
 from .serializers import (
     DeviceSerializers,
     RouterSerializer,
@@ -215,27 +215,6 @@ class FindDeviceNetworkConnection(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
-def _handle_config(hostname, username, new_ip=None, dns=None, get_way=None, ethernets=None):
-    device = SSHConnect(hostname=hostname,
-                        username=username)
-    device.open_session()
-
-    device.open_sftp_session()
-
-    if new_ip:
-        device.modify_config(new_ip_address=f'{new_ip}/24', ethernets=ethernets,
-                             localpath='core/localpath/01-network-manager-all.yaml')
-    device.modify_config(dns=dns, get_way=get_way, ethernets=ethernets, new_ip_address=f'{new_ip}/24',
-                             localpath='core/localpath/01-network-manager-all.yaml')
-
-    device.put_file(localpath='core/localpath/01-network-manager-all.yaml')
-
-    device.close_sftp_session()
-    device.apply_config(delay=3)
-    device.close_session()
-    return None
-
-
 class ChangeDeviceNetworkInterFace(APIView):
     """
     Change linux(Ubuntu) device ip address through ssh and sftp connection.
@@ -368,6 +347,14 @@ class ChangeGetWay(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
+def _get_device(host):
+    try:
+        device = Host.objects.get(ip_address=host)
+        return device
+    except:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host ip is not valid."})
+
+
 class CheckPort(APIView):
 
     def _change_port_status(self, request):
@@ -377,59 +364,58 @@ class CheckPort(APIView):
             port = serializer.validated_data['port']
 
             try:
-                device = Host.objects.filter(ip_address=host).first()
+                dvc = _get_device(host)
+                connect = SSHConnect(hostname=str(dvc),
+                                     username=dvc.username)
+                session = connect.open_session()
+                remote = session.invoke_shell()
 
-                if device is None:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host ip is not valid."})
-                else:
-                    connect = SSHConnect(hostname=host,
-                                         username=device.username)
-                    session = connect.open_session()
-                    remote = session.invoke_shell()
+                # post method open port on server
+                if request.method == "POST":
+                    remote.send(f'sudo ufw allow {port}\n')
 
-                    # post method open port on server
-                    if request.method == "POST":
-                        remote.send(f'sudo ufw allow {port}\n')
+                # patch method close port on server
+                if request.method == "PATCH":
+                    remote.send(f'sudo ufw deny {port}\n')
 
-                    # patch method close port on server
-                    if request.method == "PATCH":
-                        remote.send(f'sudo ufw deny {port}\n')
-
-                    time.sleep(2)
-                    out = remote.recv(65000)
-                    print(out.decode())
-                    print('Configuration successful')
-                    remote.close()
-                    return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
+                time.sleep(2)
+                out = remote.recv(65000)
+                print(out.decode())
+                print('Configuration successful')
+                remote.close()
+                return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
             except:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
     def get(self, request):
-        serializer = RouterSerializer(data=request.query_params)
+        serializer = DeviceSerializers(data=request.query_params)
         if serializer.is_valid():
-            device_ip = serializer.validated_data['router_ip']
-
+            hosts = serializer.validated_data['ip_address']
             try:
-                device = Host.objects.filter(ip_address=device_ip).first()
-
-                if device is None:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Host ip is not valid."})
-                else:
+                response = {}
+                for host in hosts:
+                    device = _get_device(host=host)
                     nm = nmap.PortScanner()
-                    nm.scan(arguments=device_ip)
+                    nm.scan(arguments=str(device))
 
                     # Get host name and open port list
                     host_name = [(x, nm[x]['tcp']) for x in nm.all_hosts()]
+
                     # Get port, state and name from host_name
-                    ports = []
-                    state = []
-                    name = []
+                    all_port_info = []
                     for port in host_name[1][1]:
-                        ports.append(port)
-                        state.append(host_name[1][1][port]['state'])
-                        name.append(host_name[1][1][port]['name'])
+                        # Save status and name of port
+                        port_info = {}
+                        # Save port_info
+                        save_port = {}
+
+                        port_info['staus'] = host_name[1][1][port]['state']
+                        port_info['name'] = host_name[1][1][port]['name']
+                        save_port[f'{port}'] = port_info
+                        all_port_info.append(save_port)
+
                         try:
                             # Checking that the port exists in the ports table
                             check_port = Port.objects.filter(number=port).first()
@@ -443,10 +429,8 @@ class CheckPort(APIView):
                                                 number=port,
                                                 name=host_name[1][1][port]['name'],
                                                 state=host_name[1][1][port]['state'])
-
-                    # Create dict to response
-                    devices_log = dict(zip(ports, zip(state, name)))
-                    return Response(status=status.HTTP_200_OK, data=devices_log)
+                    response[f'{host}'] = all_port_info
+                return Response(status=status.HTTP_200_OK, data=response)
             except:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Scan failed"})
         else:
@@ -473,6 +457,7 @@ class FireWall(APIView):
             serializer = DeviceSerializers(data=request.query_params)
         else:
             serializer = DeviceSerializers(data=request.data)
+
         if serializer.is_valid():
             ip_address = serializer.validated_data['ip_address']
 

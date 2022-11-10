@@ -100,3 +100,23 @@ class SSHConnect:
         print('Configuration successful')
         self.close_session()
         return out
+
+def _handle_config(hostname, username, new_ip=None, dns=None, get_way=None, ethernets=None):
+    device = SSHConnect(hostname=hostname,
+                        username=username)
+    device.open_session()
+
+    device.open_sftp_session()
+
+    if new_ip:
+        device.modify_config(new_ip_address=f'{new_ip}/24', ethernets=ethernets,
+                             localpath='core/localpath/01-network-manager-all.yaml')
+    device.modify_config(dns=dns, get_way=get_way, ethernets=ethernets, new_ip_address=f'{new_ip}/24',
+                             localpath='core/localpath/01-network-manager-all.yaml')
+
+    device.put_file(localpath='core/localpath/01-network-manager-all.yaml')
+
+    device.close_sftp_session()
+    device.apply_config(delay=3)
+    device.close_session()
+    return None
