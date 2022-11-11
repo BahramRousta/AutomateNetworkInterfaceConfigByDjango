@@ -174,50 +174,61 @@ class GetOSDevice(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
+def _get_device(host):
+    try:
+        device = Host.objects.get(ip_address=host)
+        return device
+    except:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"Message": "Host is not valid."})
+
+
 class FindDeviceNetworkConnection(APIView):
 
-    def get(self, request):
-        serializer = HostSerializer(data=request.query_params)
+    def post(self, request):
+        serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
-            ip = serializer.validated_data['current_ip']
+            devices = serializer.validated_data['devices']
 
-            try:
-                device = Host.objects.filter(ip_address=ip).first()
-                if device is None:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Device ip is not valid.'})
-                else:
-                    connect = SSHConnect(hostname=ip,
-                                         username=device.username)
+            for device in devices:
+                current_ip = device['current_ip']
+
+                try:
+                    host = _get_device(host=current_ip)
+
+                    connect = SSHConnect(hostname=str(host),
+                                         username=host.username)
                     session = connect.open_session()
                     remote = session.invoke_shell()
-
                     remote.send('netstat -i\n')
-
                     time.sleep(2)
                     out_put = remote.recv(65000).decode()
                     split_out_put = out_put.split()
 
                     network_card = []
                     for string in split_out_put:
+
+                        # In ubuntu 22.04 network card name  in wireless mode start with 'wlp'
                         if "wlp" in string:
                             network_card.append(string)
-                            device.network_card_name = string
-                            device.save()
+                            host.network_card_name = string
+                            host.save()
+
+                        # In ubuntu 22.04 network card name in wireless mode start with 'ens'
                         elif "ens" in string:
                             network_card.append(string)
-                            device.network_card_name = string
-                            device.save()
+                            host.network_card_name = string
+                            host.save()
                     return Response(status=status.HTTP_200_OK, data=network_card)
-            except:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
-
+                except:
+                    return Response(status=status.HTTP_400_BAD_REQUEST,
+                                    data={'Message': 'The operation was unsuccessful'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
 class ChangeDeviceNetworkInterFace(APIView):
     """
-    Change linux(Ubuntu) device ip address through ssh and sftp connection.
+    Change linux(Ubuntu 22.04) device ip address through ssh and sftp connection.
     """
     def post(self, request):
         serializer = DeviceNetworkSerializer(data=request.data)
@@ -299,60 +310,18 @@ class ChangeDNS(APIView):
                 dns = device['dns']
 
                 try:
-                    host = Host.objects.filter(ip_address=current_ip).first()
-
-                    if host is None:
-                        return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Host ip is not valid.'})
-                    else:
-                        _handle_config(hostname=current_ip,
-                                       username=host.username,
-                                       dns=dns,
-                                       ethernets=host.network_card_name)
-                    host.dns = dns
-                    host.save()
-                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration done.'})
+                    dvc = _get_device(host=current_ip)
+                    _handle_config(hostname=current_ip,
+                                   username=dvc.username,
+                                   dns=dns,
+                                   ethernets=dvc.network_card_name)
+                    dvc.dns = dns
+                    dvc.save()
+                    return Response(status=status.HTTP_200_OK, data={'Message': 'DNS changed successfully.'})
                 except:
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
-
-
-class ChangeGetWay(APIView):
-
-    def post(self, request):
-        serializer = DeviceNetworkSerializer(data=request.data)
-        if serializer.is_valid():
-            devices = serializer.validated_data['devices']
-
-            for device in devices:
-                current_ip = device['current_ip']
-                get_way = device['get_way']
-
-                try:
-                    host = Host.objects.filter(ip_address=current_ip).first()
-
-                    if host is None:
-                        return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Host ip is not valid.'})
-                    else:
-                        _handle_config(hostname=current_ip,
-                                       username=host.username,
-                                       ethernets=host.network_card_name,
-                                       get_way=get_way)
-                    host.get_way = get_way
-                    host.save()
-                    return Response(status=status.HTTP_200_OK, data={'status': 'Configuration done.'})
-                except:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
-
-
-def _get_device(host):
-    try:
-        device = Host.objects.get(ip_address=host)
-        return device
-    except:
-        return Response(status=status.HTTP_400_BAD_REQUEST, data={"Error": "Host ip is not valid."})
 
 
 class CheckPort(APIView):

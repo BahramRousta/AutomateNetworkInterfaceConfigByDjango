@@ -69,18 +69,18 @@ class SSHConnect:
             data = yaml.safe_load(reader)
 
             for key,  value in list(data['network']['ethernets'].items()):
-                print(ethernets)
-                print(key)
                 if ethernets != key:
                     data['network']['ethernets'][f'{ethernets}'] = data['network']['ethernets'].pop(str(key))
 
                 if new_ip_address:
-                    print(new_ip_address)
+
                     # Modify IP address
                     data['network']['ethernets'][f'{ethernets}']['addresses'] = [new_ip_address]
 
                 if dns:
+                    print(ethernets)
                     # Modify DNS
+                    # print(data['network']['ethernets'][f'{ethernets}']['nameservers']['addresses'])
                     data['network']['ethernets'][ethernets]['nameservers']['addresses'] = dns
 
                 if get_way:
@@ -89,29 +89,33 @@ class SSHConnect:
 
         with open(localpath, 'w') as writer:
             new_config_file = yaml.dump(data, writer)
+
         return new_config_file
 
     def apply_config(self, delay):
         remote_device = self.ssh_client.invoke_shell()
         remote_device.send(f'netplan apply\n')
         time.sleep(delay)
-        out = remote_device.recv(65000)
+        out = remote_device.recv(100000)
         print(out.decode())
         print('Configuration successful')
         self.close_session()
         return out
 
+
 def _handle_config(hostname, username, new_ip=None, dns=None, get_way=None, ethernets=None):
+
     device = SSHConnect(hostname=hostname,
                         username=username)
     device.open_session()
 
     device.open_sftp_session()
-
     if new_ip:
         device.modify_config(new_ip_address=f'{new_ip}/24', ethernets=ethernets,
                              localpath='core/localpath/01-network-manager-all.yaml')
-    device.modify_config(dns=dns, get_way=get_way, ethernets=ethernets, new_ip_address=f'{new_ip}/24',
+
+    if dns:
+        device.modify_config(dns=dns, ethernets=ethernets,
                              localpath='core/localpath/01-network-manager-all.yaml')
 
     device.put_file(localpath='core/localpath/01-network-manager-all.yaml')
