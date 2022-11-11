@@ -9,6 +9,7 @@ from .views import (
     CheckPort,
     AddSSHKey,
     FireWall,
+    FireWallConfig,
     FindDeviceNetworkConnection
 )
 
@@ -26,4 +27,5 @@ urlpatterns = [
     path('enable_firewall/', FireWall.as_view(), name='enable_firewall'),
     path('disable_firewall/', FireWall.as_view(), name='disable_firewall'),
     path('get_firewall_status/', FireWall.as_view(), name='get_firewall_status'),
+    path('firewall_config/', FireWallConfig.as_view(), name='firewall_config'),
 ]

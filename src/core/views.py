@@ -9,7 +9,6 @@ from .serializers import (
     DeviceSerializers,
     RouterSerializer,
     DeviceNetworkSerializer,
-    HostSerializer,
     PortSerializer,
     SSHKeySerializer,
 )
@@ -420,7 +419,7 @@ class CheckPort(APIView):
 
 class FireWall(APIView):
 
-    def _change_firewall_status(self, request):
+    def _firewall_status(self, request):
 
         if request.method == "GET":
             serializer = DeviceSerializers(data=request.query_params)
@@ -462,7 +461,6 @@ class FireWall(APIView):
                     time.sleep(2)
                     out = remote.recv(65000)
                     print(out.decode())
-                    print('Configuration successful')
                     remote.close()
                     return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
             except:
@@ -476,7 +474,7 @@ class FireWall(APIView):
         :param request:
         :return:
         """
-        return self._change_firewall_status(request=request)
+        return self._firewall_status(request=request)
 
     def post(self, request):
         """
@@ -484,7 +482,7 @@ class FireWall(APIView):
         :param request:
         :return:
         """
-        return self._change_firewall_status(request=request)
+        return self._firewall_status(request=request)
 
     def patch(self, request):
         """
@@ -492,4 +490,42 @@ class FireWall(APIView):
         :param request:
         :return:
         """
-        return self._change_firewall_status(request=request)
+        return self._firewall_status(request=request)
+
+
+class FireWallConfig(APIView):
+
+    def _firewall_config(self, request):
+
+        if request.method == "GET":
+            serializer = DeviceSerializers(data=request.query_params)
+        else:
+            serializer = DeviceSerializers(data=request.data)
+
+        if serializer.is_valid():
+            ip_address = serializer.validated_data['ip_address']
+
+            try:
+                dvc = _get_device(host=ip_address[0])
+                connect = SSHConnect(hostname=str(dvc),
+                                     username=dvc.username)
+                session = connect.open_session()
+                remote = session.invoke_shell()
+
+                if request.method == "GET":
+                    commands = [f'sudo ufw default allow outgoing \n', f'sudo ufw default deny incoming\n']
+                    for command in commands:
+                        remote.send(command)
+
+                    time.sleep(2)
+                    out = remote.recv(65000)
+                    print(out.decode())
+                    remote.close()
+                return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+    def get(self, request):
+        return self._firewall_config(request=request)
