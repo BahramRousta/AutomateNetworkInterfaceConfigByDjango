@@ -48,13 +48,13 @@ class Port(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} - {self.state} - {self.host}"
+        return f"{self.name} - {self.number}"
 
 
 class FireWall(models.Model):
-    host = models.ForeignKey(Host,
-                             on_delete=models.CASCADE,
-                             related_name="firewall")
+    host = models.OneToOneField(Host,
+                                on_delete=models.CASCADE,
+                                related_name="firewall")
     allowed_port = models.ManyToManyField(Port,
                                           null=True,
                                           blank=True,

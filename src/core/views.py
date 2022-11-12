@@ -2,6 +2,7 @@ import time
 import nmap
 import paramiko
 from rest_framework import status
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .utils import SSHConnect, _handle_config
@@ -229,6 +230,7 @@ class ChangeDeviceNetworkInterFace(APIView):
     """
     Change linux(Ubuntu 22.04) device ip address through ssh and sftp connection.
     """
+
     def post(self, request):
         serializer = DeviceNetworkSerializer(data=request.data)
         if serializer.is_valid():
@@ -363,6 +365,7 @@ class CheckPort(APIView):
             hosts = serializer.validated_data['ip_address']
             try:
                 response = {}
+
                 for host in hosts:
                     device = _get_device(host=host)
                     nm = nmap.PortScanner()
@@ -370,7 +373,6 @@ class CheckPort(APIView):
 
                     # Get host name and open port list
                     host_name = [(x, nm[x]['tcp']) for x in nm.all_hosts()]
-
                     # Get port, state and name from host_name
                     all_port_info = []
                     for port in host_name[1][1]:
@@ -384,19 +386,16 @@ class CheckPort(APIView):
                         save_port[f'{port}'] = port_info
                         all_port_info.append(save_port)
 
-                        try:
-                            # Checking that the port exists in the ports table
-                            check_port = Port.objects.filter(number=port).first()
-                            if check_port.host.id == device.id:
-                                # Update check_port status
-                                check_port.name = host_name[1][1][port]['name']
-                                check_port.state = host_name[1][1][port]['state']
-                                check_port.save()
-                        except:
-                            Port.objects.create(host_id=device.id,
-                                                number=port,
-                                                name=host_name[1][1][port]['name'],
-                                                state=host_name[1][1][port]['state'])
+                        get_port, create_port = Port.objects.get_or_create(host=device,
+                                                                           number=port,
+                                                                           name=host_name[1][1][port]['name'])
+
+                        if get_port and get_port.host.id == device.id:
+                            # Update check_port status
+                            get_port.name = host_name[1][1][port]['name']
+                            get_port.state = host_name[1][1][port]['state']
+                            get_port.save()
+
                     response[f'{host}'] = all_port_info
                 return Response(status=status.HTTP_200_OK, data=response)
             except:
