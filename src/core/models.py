@@ -37,9 +37,8 @@ class ConnectDevice(models.Model):
         return self.ip_address
 
 
-class Port(models.Model):
-    host = models.ForeignKey(Host,
-                             on_delete=models.CASCADE,
+class PortLog(models.Model):
+    host = models.ForeignKey(Host, on_delete=models.CASCADE,
                              related_name="ports")
     name = models.CharField(max_length=25)
     number = models.IntegerField()
@@ -51,22 +50,23 @@ class Port(models.Model):
         return f"{self.name} - {self.number}"
 
 
+class Port(models.Model):
+    name = models.CharField(max_length=25)
+    number = models.IntegerField()
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.number}"
+
+
 class FireWall(models.Model):
     host = models.OneToOneField(Host,
                                 on_delete=models.CASCADE,
                                 related_name="firewall")
-    allowed_port = models.ManyToManyField(Port,
-                                          null=True,
-                                          blank=True,
-                                          related_name="allowed")
-    denied_port = models.ManyToManyField(Port,
-                                         null=True,
-                                         blank=True,
-                                         related_name="denied")
-    limited_port = models.ManyToManyField(Port,
-                                          null=True,
-                                          blank=True,
-                                          related_name="limited")
+    allowed_port = models.ManyToManyField(Port, null=True, related_name="allowed")
+    denied_port = models.ManyToManyField(Port, null=True, related_name="denied")
+    limited_port = models.ManyToManyField(Port, null=True, related_name="limited")
     status = models.BooleanField(default=False)
     default_allow_policy = models.BooleanField(default=False)
     default_deny_policy = models.BooleanField(default=False)

@@ -13,7 +13,7 @@ from .serializers import (
     PortSerializer,
     SSHKeySerializer,
 )
-from .models import ConnectDevice, Port, Host, FireWall
+from .models import ConnectDevice, PortLog, Host, FireWall, Port
 
 
 class AddSSHKey(APIView):
@@ -335,6 +335,11 @@ class CheckPort(APIView):
 
             try:
                 dvc = _get_device(host)
+                try:
+                    get_port = Port.objects.get(number=port)
+                except:
+                    get_port = Port.objects.create(number=port)
+
                 connect = SSHConnect(hostname=str(dvc),
                                      username=dvc.username)
                 session = connect.open_session()
@@ -342,11 +347,28 @@ class CheckPort(APIView):
 
                 # post method open port on server
                 if request.method == "POST":
-                    remote.send(f'sudo ufw allow {port}\n')
+                    remote.send(f'ufw allow {port}\n')
+
+                    try:
+                        firewall = FireWall.objects.get(host=dvc)
+                        if firewall:
+                            firewall.allowed_port.add(get_port)
+                    except:
+                        firewall = FireWall.objects.create(host=dvc)
+                        firewall.allowed_port.add(get_port)
 
                 # patch method close port on server
                 if request.method == "PATCH":
-                    remote.send(f'sudo ufw deny {port}\n')
+                    remote.send(f'ufw deny {port}\n')
+
+                    try:
+                        firewall = FireWall.objects.get(host=dvc)
+                        if firewall:
+                            firewall.allowed_port.remove(get_port)
+                            firewall.denied_port.add(get_port)
+                    except:
+                        firewall = FireWall.objects.create(host=dvc)
+                        firewall.denied_port.add(get_port)
 
                 time.sleep(2)
                 out = remote.recv(65000)
@@ -386,10 +408,10 @@ class CheckPort(APIView):
                         save_port[f'{port}'] = port_info
                         all_port_info.append(save_port)
 
-                        get_port, create_port = Port.objects.get_or_create(host=device,
-                                                                           number=port,
-                                                                           name=host_name[1][1][port]['name'])
-
+                        get_port, create_port = PortLog.objects.get_or_create(host=device,
+                                                                              number=port,
+                                                                              name=host_name[1][1][port]['name'],
+                                                                              state=host_name[1][1][port]['state'])
                         if get_port and get_port.host.id == device.id:
                             # Update check_port status
                             get_port.name = host_name[1][1][port]['name']
