@@ -12,7 +12,7 @@ from .serializers import (
     PortSerializer,
     SSHKeySerializer,
 )
-from .models import ConnectDevice, Port, Host
+from .models import ConnectDevice, Port, Host, FireWall
 
 
 class AddSSHKey(APIView):
@@ -417,7 +417,7 @@ class CheckPort(APIView):
         return self._change_port_status(request=request)
 
 
-class FireWall(APIView):
+class FireWallStatus(APIView):
 
     def _firewall_status(self, request):
 
@@ -439,24 +439,35 @@ class FireWall(APIView):
                     session = connect.open_session()
                     remote = session.invoke_shell()
 
+                    get_firewall, create_firewall = FireWall.objects.get_or_create(host=device)
+
                     if request.method == "GET":
                         remote.send(f'ufw status\n')
                         time.sleep(2)
                         out = remote.recv(65000)
                         check = out.decode().split()
                         remote.close()
+
                         if 'active' in check:
+                            get_firewall.status = True
+                            get_firewall.save()
                             return Response(status=status.HTTP_200_OK, data={'Message': 'Firewall is active.'})
                         else:
+                            get_firewall.status = False
+                            get_firewall.save()
                             return Response(status=status.HTTP_200_OK, data={'Message': 'Firewall is disable.'})
 
                     if request.method == "POST":
                         commands = [f'ufw enable\n', 'y\n']
                         for command in commands:
                             remote.send(command)
+                        get_firewall.status = True
+                        get_firewall.save()
 
                     if request.method == "PATCH":
                         remote.send(f'ufw disable\n')
+                        get_firewall.status = False
+                        get_firewall.save()
 
                     time.sleep(2)
                     out = remote.recv(65000)
@@ -493,7 +504,7 @@ class FireWall(APIView):
         return self._firewall_status(request=request)
 
 
-class FireWallConfig(APIView):
+class FireWallDefaultPolicy(APIView):
 
     def _firewall_config(self, request):
 
@@ -503,24 +514,34 @@ class FireWallConfig(APIView):
             serializer = DeviceSerializers(data=request.data)
 
         if serializer.is_valid():
-            ip_address = serializer.validated_data['ip_address']
+            host = serializer.validated_data['ip_address']
 
             try:
-                dvc = _get_device(host=ip_address[0])
+                dvc = _get_device(host=host[0])
                 connect = SSHConnect(hostname=str(dvc),
                                      username=dvc.username)
                 session = connect.open_session()
                 remote = session.invoke_shell()
 
                 if request.method == "GET":
-                    commands = [f'sudo ufw default allow outgoing \n', f'sudo ufw default deny incoming\n']
+                    commands = [f'ufw default allow outgoing \n', f'ufw default deny incoming\n']
                     for command in commands:
                         remote.send(command)
 
                     time.sleep(2)
-                    out = remote.recv(65000)
+                    out = remote.recv(25000)
                     print(out.decode())
-                    remote.close()
+
+                    try:
+                        firewall = FireWall.objects.get(host=dvc)
+                        firewall.default_allow_policy = True
+                        firewall.default_deny_policy = True
+                        firewall.save()
+                    except:
+                        FireWall.objects.create(host=dvc,
+                                                default_deny_policy=True,
+                                                default_allow_policy=True)
+                remote.close()
                 return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
             except:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})

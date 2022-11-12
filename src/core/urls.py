@@ -8,8 +8,8 @@ from .views import (
     PingDevice,
     CheckPort,
     AddSSHKey,
-    FireWall,
-    FireWallConfig,
+    FireWallStatus,
+    FireWallDefaultPolicy,
     FindDeviceNetworkConnection
 )
 
@@ -24,8 +24,8 @@ urlpatterns = [
     path('detect_os_device/', GetOSDevice.as_view(), name='detect_os_device'),
     path('ping_device/', PingDevice.as_view(), name='ping_device'),
     path('open_port/', CheckPort.as_view(), name='open_port'),
-    path('enable_firewall/', FireWall.as_view(), name='enable_firewall'),
-    path('disable_firewall/', FireWall.as_view(), name='disable_firewall'),
-    path('get_firewall_status/', FireWall.as_view(), name='get_firewall_status'),
-    path('firewall_config/', FireWallConfig.as_view(), name='firewall_config'),
+    path('enable_firewall/', FireWallStatus.as_view(), name='enable_firewall'),
+    path('disable_firewall/', FireWallStatus.as_view(), name='disable_firewall'),
+    path('get_firewall_status/', FireWallStatus.as_view(), name='get_firewall_status'),
+    path('firewall_default_policy/', FireWallDefaultPolicy.as_view(), name='firewall_default_policy'),
 ]
