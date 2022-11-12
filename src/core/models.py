@@ -49,3 +49,31 @@ class Port(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.state}"
+
+
+class FireWall(models.Model):
+    host = models.ForeignKey(Host,
+                             on_delete=models.CASCADE,
+                             related_name="firewall")
+    allowed_port = models.ForeignKey(Port,
+                                     on_delete=models.CASCADE,
+                                     null=True,
+                                     blank=True,
+                                     related_name="allowed")
+    denied_port = models.ForeignKey(Port,
+                                    on_delete=models.CASCADE,
+                                    null=True,
+                                    blank=True,
+                                    related_name="denied")
+    limited_port = models.ForeignKey(Port,
+                                     on_delete=models.CASCADE,
+                                     null=True,
+                                     blank=True,
+                                     related_name="limited")
+    status = models.BooleanField(default=False)
+    reset = models.BooleanField(default=False)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.host
