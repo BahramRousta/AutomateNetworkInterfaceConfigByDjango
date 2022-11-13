@@ -27,5 +27,6 @@ urlpatterns = [
     path('enable_firewall/', FireWallStatus.as_view(), name='enable_firewall'),
     path('disable_firewall/', FireWallStatus.as_view(), name='disable_firewall'),
     path('get_firewall_status/', FireWallStatus.as_view(), name='get_firewall_status'),
+    path('reset_firewall/', FireWallStatus.as_view(), name='reset_firewall'),
     path('firewall_default_policy/', FireWallDefaultPolicy.as_view(), name='firewall_default_policy'),
 ]

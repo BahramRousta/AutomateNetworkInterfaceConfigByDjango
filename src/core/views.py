@@ -395,6 +395,7 @@ class CheckPort(APIView):
 
                     # Get host name and open port list
                     host_name = [(x, nm[x]['tcp']) for x in nm.all_hosts()]
+                    print(host_name)
                     # Get port, state and name from host_name
                     all_port_info = []
                     for port in host_name[1][1]:
@@ -403,7 +404,7 @@ class CheckPort(APIView):
                         # Save port_info
                         save_port = {}
 
-                        port_info['staus'] = host_name[1][1][port]['state']
+                        # port_info['staus'] = host_name[1][1][port]['state']
                         port_info['name'] = host_name[1][1][port]['name']
                         save_port[f'{port}'] = port_info
                         all_port_info.append(save_port)
@@ -490,6 +491,14 @@ class FireWallStatus(APIView):
                         get_firewall.status = False
                         get_firewall.save()
 
+                    if request.method == "DELETE":
+                        commands = [f'ufw reset\n', 'y\n']
+                        for command in commands:
+                            remote.send(command)
+                            get_firewall.status = False
+                            get_firewall.reset = True
+                            get_firewall.save()
+
                     time.sleep(2)
                     out = remote.recv(65000)
                     print(out.decode())
@@ -524,15 +533,15 @@ class FireWallStatus(APIView):
         """
         return self._firewall_status(request=request)
 
+    def delete(self, request):
+        return self._firewall_status(request=request)
+
 
 class FireWallDefaultPolicy(APIView):
 
     def _firewall_config(self, request):
 
-        if request.method == "GET":
-            serializer = DeviceSerializers(data=request.query_params)
-        else:
-            serializer = DeviceSerializers(data=request.data)
+        serializer = DeviceSerializers(data=request.query_params)
 
         if serializer.is_valid():
             host = serializer.validated_data['ip_address']
