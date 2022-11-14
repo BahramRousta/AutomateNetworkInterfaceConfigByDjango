@@ -2,7 +2,6 @@ import time
 import nmap
 import paramiko
 from rest_framework import status
-from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .utils import SSHConnect, _handle_config
@@ -11,7 +10,7 @@ from .serializers import (
     RouterSerializer,
     DeviceNetworkSerializer,
     PortSerializer,
-    SSHKeySerializer,
+    SSHKeySerializer, LimitPortSerializer,
 )
 from .models import ConnectDevice, PortLog, Host, FireWall, Port
 
@@ -395,7 +394,6 @@ class CheckPort(APIView):
 
                     # Get host name and open port list
                     host_name = [(x, nm[x]['tcp']) for x in nm.all_hosts()]
-                    print(host_name)
                     # Get port, state and name from host_name
                     all_port_info = []
                     for port in host_name[1][1]:
@@ -499,6 +497,10 @@ class FireWallStatus(APIView):
                             get_firewall.reset = True
                             get_firewall.save()
 
+                    if request.method == "PUT":
+                        commands = [f'ufw limit\n', 'y\n']
+                        for command in commands:
+                            remote.send(command)
                     time.sleep(2)
                     out = remote.recv(65000)
                     print(out.decode())
@@ -534,7 +536,40 @@ class FireWallStatus(APIView):
         return self._firewall_status(request=request)
 
     def delete(self, request):
+        """
+        Reset ufw firewall
+        :param request:
+        :return:
+        """
         return self._firewall_status(request=request)
+
+    def put(self, request):
+
+        serializer = LimitPortSerializer(data=request.data)
+        if serializer.is_valid():
+            devices = serializer.validated_data['devices']
+
+            for device in devices:
+                host = device['host']
+                port = device['port']
+
+                try:
+                    dvc = _get_device(host=host)
+                    connect = SSHConnect(hostname=host,
+                                         username=dvc.username)
+                    session = connect.open_session()
+                    remote = session.invoke_shell()
+
+                    remote.send(f'ufw limit {port}\n')
+
+                    time.sleep(1)
+                    remote.recv(65000)
+                    remote.close()
+                    return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
+                except:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
 class FireWallDefaultPolicy(APIView):

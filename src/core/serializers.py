@@ -4,7 +4,6 @@ from rest_framework import serializers
 class DeviceSerializers(serializers.Serializer):
     ip_address = serializers.ListField()
 
-
 class RouterSerializer(serializers.Serializer):
     router_ip = serializers.CharField()
 
@@ -23,6 +22,10 @@ class DeviceNetworkSerializer(serializers.Serializer):
 class PortSerializer(serializers.Serializer):
     host = serializers.IPAddressField()
     port = serializers.IntegerField()
+
+
+class LimitPortSerializer(serializers.Serializer):
+    devices = serializers.ListField(child=PortSerializer())
 
 
 class SSHKeySerializer(serializers.Serializer):
