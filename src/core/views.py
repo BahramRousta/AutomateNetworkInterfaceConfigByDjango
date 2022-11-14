@@ -10,7 +10,8 @@ from .serializers import (
     RouterSerializer,
     DeviceNetworkSerializer,
     PortSerializer,
-    SSHKeySerializer, LimitPortSerializer,
+    SSHKeySerializer,
+    LimitPortSerializer
 )
 from .models import ConnectDevice, PortLog, Host, FireWall, Port
 
@@ -544,7 +545,11 @@ class FireWallStatus(APIView):
         return self._firewall_status(request=request)
 
     def put(self, request):
-
+        """
+        Limit port in ufw
+        :param request:
+        :return:
+        """
         serializer = LimitPortSerializer(data=request.data)
         if serializer.is_valid():
             devices = serializer.validated_data['devices']
@@ -565,7 +570,7 @@ class FireWallStatus(APIView):
                     time.sleep(1)
                     remote.recv(65000)
                     remote.close()
-                    return Response(status=status.HTTP_200_OK, data={'Message': 'Configuration done.'})
+                    return Response(status=status.HTTP_200_OK, data={'Message': 'Port limited successfully.'})
                 except:
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={'Error': 'Configuration failed.'})
         else:

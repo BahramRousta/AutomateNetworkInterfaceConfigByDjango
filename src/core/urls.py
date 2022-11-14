@@ -10,7 +10,7 @@ from .views import (
     AddSSHKey,
     FireWallStatus,
     FireWallDefaultPolicy,
-    FindDeviceNetworkConnection
+    FindDeviceNetworkConnection,
 )
 
 
@@ -29,5 +29,5 @@ urlpatterns = [
     path('get_firewall_status/', FireWallStatus.as_view(), name='get_firewall_status'),
     path('reset_firewall/', FireWallStatus.as_view(), name='reset_firewall'),
     path('firewall_default_policy/', FireWallDefaultPolicy.as_view(), name='firewall_default_policy'),
-    path('limit_port/', FireWallStatus.as_view(), name='limit_port'),
+    path('limit_port/', FireWallStatus.as_view(), name='limit_port')
 ]
