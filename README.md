@@ -1,7 +1,2 @@
 # NetworkManagment
-
-Before use this scripts you must install openssh-server and modify config yours sshd_config and set "PermitRootLogin" to
-"yes" and restart your sshd service.
-
-mkdir ".ssh" for "root" user to access copy ssh pub key.
-For using Nmap first you must install nmap on your os then install python-nmap.
+This application is based on ubuntu version 22.04 and use ssh-key for connect to devices and executing scripts. In first step install openssh-server and modify sshd_config. Set "PermitRootLogin" to "yes" and restart sshd service. Set passwd and mkdir ".ssh" for "root" user to access copy ssh public key from admin device. At the end install nmap. 
